@@ -1,4 +1,4 @@
-module Normalize (
+module TestNormalize (
     testNormalize
 ) where
 
@@ -14,7 +14,7 @@ testRoundTrip str e = TestCase $ assertEqual ("round-trip " ++ str) (prettyText 
 
 roundTrip str =
     case parseExpr str "" of
-        Left err -> TestCase $ assertFailure $ "Failed to parse: " ++ str
+        Left _ -> TestCase $ assertFailure $ "Failed to parse: " ++ str
         Right (e, _) -> testRoundTrip str e
 
 testNormalize :: Test

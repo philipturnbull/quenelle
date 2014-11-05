@@ -4,10 +4,16 @@ import Control.Monad
 import System.Exit
 import Test.HUnit
 
-import Normalize
+import TestMatch
+import TestNormalize
+import TestRule
+import TestVar
 
 tests = TestList [
-    testNormalize
+    testMatch,
+    testNormalize,
+    testRule,
+    testVar
     ]
 
 main :: IO ()
