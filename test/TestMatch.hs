@@ -33,6 +33,8 @@ testMatchExprRule :: Test
 testMatchExprRule = TestLabel "matchExprRule" $ TestList [
       t "0" "0" [[]]
     , t "0" "1" []
+    , t "0L" "0L" [[]]
+
     , t "E1" "0" [[("E1", zero)]]
     , t "(E1)" "(0)" [[("E1", zero)]]
     , t "(E1)" "0 + 1" []

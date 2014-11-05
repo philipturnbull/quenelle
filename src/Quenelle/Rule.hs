@@ -125,7 +125,7 @@ pInt _ _ = False
 
 
 pLongInt :: Integer -> ExprPred
-pLongInt x (Int y _ _) = x == y
+pLongInt x (LongInt y _ _) = x == y
 pLongInt _ _ = False
 
 
