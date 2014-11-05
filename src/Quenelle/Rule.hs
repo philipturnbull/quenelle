@@ -93,6 +93,10 @@ exprToPred path (BinaryOp op l r _) = do
     rp <- exprToPred (path.right_op_argL) r
     return $ pBinaryOp (pOp op) lp rp
 
+exprToPred path (UnaryOp op arg _) = do
+    argp <- exprToPred (path.op_argL) arg
+    return $ pUnaryOp (pOp op) argp
+
 exprToPred path (Paren e _) = pParen <$> exprToPred (path.paren_exprL) e
 
 --------------------------------------------------------------------------------
@@ -132,6 +136,10 @@ pOp x y = x == y
 pBinaryOp :: (QOp -> Bool) -> ExprPred -> ExprPred -> ExprPred
 pBinaryOp opp lp rp (BinaryOp op l r _) = and [opp op, lp l, rp r]
 pBinaryOp _ _ _ _ = False
+
+pUnaryOp :: (QOp -> Bool) -> ExprPred -> ExprPred
+pUnaryOp opp argp (UnaryOp op arg _) = opp op && argp arg
+pUnaryOp _ _ _ = False
 
 
 pParen :: ExprPred -> ExprPred
