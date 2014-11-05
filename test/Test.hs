@@ -19,4 +19,4 @@ tests = TestList [
 main :: IO ()
 main = do
     results <- runTestTT tests
-    when (failures results > 0) exitFailure
+    when (failures results > 0 || errors results > 0) exitFailure
