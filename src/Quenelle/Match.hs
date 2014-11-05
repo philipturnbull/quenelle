@@ -45,5 +45,7 @@ childExprs path e@(BinaryOp _ l r _) =
     (path, e) : (childExprs (path.left_op_argL) l) ++ (childExprs (path.right_op_argL) r)
 childExprs path e@(UnaryOp _ ue _) = (path, e) : (childExprs (path.op_argL) ue)
 
+childExprs path e@(Call fun [] _) = (path, e) : (childExprs (path.call_funL) fun)
+
 childExprs path e@(Paren pe _) =
     (path, e) : (childExprs (path.paren_exprL) pe)

@@ -97,6 +97,10 @@ exprToPred path (UnaryOp op arg _) = do
     argp <- exprToPred (path.op_argL) arg
     return $ pUnaryOp (pOp op) argp
 
+exprToPred path (Call fun [] _) = do
+    funp <- exprToPred (path.call_funL) fun
+    return $ pCall funp
+
 exprToPred path (Paren e _) = pParen <$> exprToPred (path.paren_exprL) e
 
 --------------------------------------------------------------------------------
@@ -141,6 +145,10 @@ pUnaryOp :: (QOp -> Bool) -> ExprPred -> ExprPred
 pUnaryOp opp argp (UnaryOp op arg _) = opp op && argp arg
 pUnaryOp _ _ _ = False
 
+
+pCall :: ExprPred -> ExprPred
+pCall funp (Call fun [] _) = funp fun
+pCall _ _ = False
 
 pParen :: ExprPred -> ExprPred
 pParen ep (Paren e _) = ep e
