@@ -101,6 +101,11 @@ exprToPred path (Call fun [] _) = do
     funp <- exprToPred (path.call_funL) fun
     return $ pCall funp
 
+exprToPred path (Subscript subscriptee subscript_expr _) = do
+    subscripteep <- exprToPred (path.subscripteeL) subscriptee
+    subscript_exprp <- exprToPred (path.subscript_exprL) subscript_expr
+    return $ pSubscript subscripteep subscript_exprp
+
 exprToPred path (Paren e _) = pParen <$> exprToPred (path.paren_exprL) e
 
 --------------------------------------------------------------------------------
@@ -149,6 +154,11 @@ pUnaryOp _ _ _ = False
 pCall :: ExprPred -> ExprPred
 pCall funp (Call fun [] _) = funp fun
 pCall _ _ = False
+
+
+pSubscript :: ExprPred -> ExprPred -> ExprPred
+pSubscript sp sep (Subscript s se _) = sp s && sep se
+pSubscript _ _ _ = False
 
 pParen :: ExprPred -> ExprPred
 pParen ep (Paren e _) = ep e

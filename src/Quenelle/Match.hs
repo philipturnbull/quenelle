@@ -47,5 +47,8 @@ childExprs path e@(UnaryOp _ ue _) = (path, e) : (childExprs (path.op_argL) ue)
 
 childExprs path e@(Call fun [] _) = (path, e) : (childExprs (path.call_funL) fun)
 
+childExprs path e@(Subscript s se _) =
+    (path, e) : (childExprs (path.subscripteeL) s) ++ (childExprs (path.subscript_exprL) se)
+
 childExprs path e@(Paren pe _) =
     (path, e) : (childExprs (path.paren_exprL) pe)

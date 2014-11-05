@@ -47,6 +47,10 @@ testMatchExprRule = TestLabel "matchExprRule" $ TestList [
     , t "-E1" "(-0) + (-1)" [[("E1", zero)], [("E1", one)]]
     , t "E1()" "f()" [[("E1", var "f")]]
     , t "E1()" "0()" [[("E1", zero)]]
+
+    , t "E1[E1]" "0[0]" [[("E1", zero)]]
+    , t "E1[E2]" "0[1]" [[("E1", zero), ("E2", one)]]
+    , t "E1[E1]" "0[1]" []
     ]
     where t = testRule
           zero = Int 0 "0" ()
