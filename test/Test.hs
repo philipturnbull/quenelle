@@ -6,12 +6,14 @@ import Test.HUnit
 
 import TestMatch
 import TestNormalize
+import TestReplace
 import TestRule
 import TestVar
 
 tests = TestList [
     testMatch,
     testNormalize,
+    testReplace,
     testRule,
     testVar
     ]

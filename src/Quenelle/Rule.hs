@@ -25,6 +25,7 @@ type ParameterPred = QParameter -> Bool
 
 data ExprRule = ExprRule {
     exprRuleName :: String,
+    exprRuleExpr :: QExpr,
     exprRulePred :: ExprPred,
     exprRuleBoundVars :: [(String, QPath)]
     }
@@ -48,18 +49,23 @@ parseExprRule :: String -> Either ParseError ExprRule
 parseExprRule str =
     case parseExprPred str of
         Left err -> Left err
-        Right (pred, state) -> Right ExprRule {
+        Right (expr, pred, state) -> Right ExprRule {
             exprRuleName = "rule",
+            exprRuleExpr = expr,
             exprRulePred = pred,
             exprRuleBoundVars = ruleBoundVars state
             }
 
 
-parseExprPred :: String -> Either ParseError (ExprPred, RuleState)
+parseExprPred :: String -> Either ParseError (QExpr, ExprPred, RuleState)
 parseExprPred str =
     case parseExpr str "rule" of
         Left err -> Left err
-        Right (e, _) -> Right $ runState (exprToPred id $ normalizeExpr e) emptyRuleState
+        Right (e, _) -> Right $ runExprToPred e
+
+runExprToPred e = (e', pred, state)
+    where (pred, state) = runState (exprToPred id e') emptyRuleState
+          e' = normalizeExpr e
 
 --------------------------------------------------------------------------------
 

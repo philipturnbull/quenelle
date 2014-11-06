@@ -10,6 +10,7 @@ import Test.HUnit.Base
 
 import Quenelle.Match
 import Quenelle.Normalize
+import Quenelle.Replace
 import Quenelle.Rule
 
 testMatch = TestList [
