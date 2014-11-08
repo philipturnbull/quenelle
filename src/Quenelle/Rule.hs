@@ -20,6 +20,7 @@ import Quenelle.Normalize
 import Quenelle.Var
 
 type ArgumentPred = QArgument -> Bool
+type ArgumentsPred = [QArgument] -> Bool
 type ExprPred = QExpr -> Bool
 type ParameterPred = QParameter -> Bool
 
@@ -103,9 +104,10 @@ exprToPred path (UnaryOp op arg _) = do
     argp <- exprToPred (path.op_argL) arg
     return $ pUnaryOp (pOp op) argp
 
-exprToPred path (Call fun [] _) = do
+exprToPred path (Call fun args _) = do
     funp <- exprToPred (path.call_funL) fun
-    return $ pCall funp
+    argsp <- argumentsToPred (path.call_argsL) args
+    return $ pCall funp argsp
 
 exprToPred path (Subscript subscriptee subscript_expr _) = do
     subscripteep <- exprToPred (path.subscripteeL) subscriptee
@@ -113,6 +115,15 @@ exprToPred path (Subscript subscriptee subscript_expr _) = do
     return $ pSubscript subscripteep subscript_exprp
 
 exprToPred path (Paren e _) = pParen <$> exprToPred (path.paren_exprL) e
+
+--------------------------------------------------------------------------------
+
+argumentsToPred :: (Traversal' QExpr [QArgument]) -> [QArgument] -> State RuleState ArgumentsPred
+argumentsToPred path args =
+    pArguments <$> sequence [argumentToPred (path.(ix i)) arg | (arg, i) <- zip args [0..]]
+
+argumentToPred :: (Traversal' QExpr QArgument) -> QArgument -> State RuleState ArgumentPred
+argumentToPred path (ArgExpr expr _) = pArgExpr <$> exprToPred (path.arg_exprL) expr
 
 --------------------------------------------------------------------------------
 
@@ -157,9 +168,9 @@ pUnaryOp opp argp (UnaryOp op arg _) = opp op && argp arg
 pUnaryOp _ _ _ = False
 
 
-pCall :: ExprPred -> ExprPred
-pCall funp (Call fun [] _) = funp fun
-pCall _ _ = False
+pCall :: ExprPred -> ArgumentsPred -> ExprPred
+pCall funp argsp (Call fun args _) = funp fun && argsp args
+pCall _ _ _ = False
 
 
 pSubscript :: ExprPred -> ExprPred -> ExprPred
@@ -169,3 +180,12 @@ pSubscript _ _ _ = False
 pParen :: ExprPred -> ExprPred
 pParen ep (Paren e _) = ep e
 pParen _ _ = False
+
+
+pArguments :: [ArgumentPred] -> ArgumentsPred
+pArguments argsp args | length argsp == length args = and $ map (\(f, e) -> f e) (zip argsp args)
+pArguments _ _ = False
+
+pArgExpr :: ExprPred -> ArgumentPred
+pArgExpr argp (ArgExpr arg _) = argp arg
+pArgExpr _ _  = False
