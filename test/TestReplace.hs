@@ -22,7 +22,8 @@ testReplace = TestLabel "doReplacement" $ TestList [
     testBinaryOp,
     testUnaryOp,
     testCall,
-    testSubscript
+    testSubscript,
+    testTuple
     ]
 
 fail = TestCase . assertFailure
@@ -93,4 +94,10 @@ testSubscript = testList "Subscript" [
       t "x[0]" "x[E1]" "E1" "0"
     , t "x[y]" "E1[E2]" "E2[E1]" "y[x]"
     , t "x[(y)]" "E1[(E2)]" "E2[E1]" "y[x]"
+    ]
+
+testTuple = testList "Tuple" [
+      t "()" "E1" "E1" "()"
+    , t "(x,)" "(E1,)" "(E1,)" "(x,)"
+    , t "(x, y)" "(E1, E2)" "(E2, E1)" "(y, x)"
     ]

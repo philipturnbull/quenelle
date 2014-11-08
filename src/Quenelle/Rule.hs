@@ -116,6 +116,9 @@ exprToPred path (Subscript subscriptee subscript_expr _) = do
 
 exprToPred path (Paren e _) = pParen <$> exprToPred (path.paren_exprL) e
 
+exprToPred path (Tuple es _) =
+    pTuple <$> sequence [exprToPred (path.tuple_exprsL.(ix i)) e | (e, i) <- zip es [0..]]
+
 --------------------------------------------------------------------------------
 
 argumentsToPred :: (Traversal' QExpr [QArgument]) -> [QArgument] -> State RuleState ArgumentsPred
@@ -189,3 +192,7 @@ pArguments _ _ = False
 pArgExpr :: ExprPred -> ArgumentPred
 pArgExpr argp (ArgExpr arg _) = argp arg
 pArgExpr _ _  = False
+
+pTuple :: [ExprPred] -> QExpr -> Bool
+pTuple esp (Tuple es _) | length esp == length es = and $ map (\(f, e) -> f e) (zip esp es)
+pTuple _ _ = False
