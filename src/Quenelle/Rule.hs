@@ -10,6 +10,7 @@ import Control.Applicative
 import Control.Exception.Base
 import Control.Lens
 import Control.Monad.State.Strict
+import Data.Maybe
 
 import Language.Python.Common.AST
 import Language.Python.Common.ParseError
@@ -22,6 +23,8 @@ import Quenelle.Var
 type ArgumentPred = QArgument -> Bool
 type ArgumentsPred = [QArgument] -> Bool
 type ExprPred = QExpr -> Bool
+type ComprehensionPred a = (QComprehension a) -> Bool
+type CompForPred = QCompFor -> Bool
 type ParameterPred = QParameter -> Bool
 
 data ExprRule = ExprRule {
@@ -119,6 +122,8 @@ exprToPred path (Paren e _) = pParen <$> exprToPred (path.paren_exprL) e
 exprToPred path (Tuple es _) =
     pTuple <$> sequence [exprToPred (path.tuple_exprsL.(ix i)) e | (e, i) <- zip es [0..]]
 
+exprToPred path (ListComp comp _) = pListComp <$> comprehensionToPred (path.list_comprehensionL) comp
+
 --------------------------------------------------------------------------------
 
 argumentsToPred :: (Traversal' QExpr [QArgument]) -> [QArgument] -> State RuleState ArgumentsPred
@@ -128,6 +133,25 @@ argumentsToPred path args =
 argumentToPred :: (Traversal' QExpr QArgument) -> QArgument -> State RuleState ArgumentPred
 argumentToPred path (ArgExpr expr _) = pArgExpr <$> exprToPred (path.arg_exprL) expr
 argumentToPred path (ArgVarArgsPos expr _) = pArgVarArgsPosExpr <$> exprToPred (path.arg_exprL) expr
+
+--------------------------------------------------------------------------------
+
+comprehensionToPred :: (Traversal' QExpr (QComprehension QExpr)) -> (QComprehension QExpr) -> State RuleState (ComprehensionPred QExpr)
+comprehensionToPred path (Comprehension e for _) = do
+    ep <- exprToPred (path.comprehension_exprL) e
+    forp <- compForToPred (path.comprehension_forL) for
+    return $ pComprehension ep forp
+
+compForToPred :: (Traversal' QExpr QCompFor) -> QCompFor -> State RuleState CompForPred
+compForToPred path (CompFor fores ine iter _) = do
+    foresp <- sequence [exprToPred (path.comp_for_exprsL.(ix i)) e | (e, i) <- zip fores [0..]]
+    inep <- exprToPred (path.comp_in_exprL) ine
+    iterp <- compIterToPred (path.comp_for_iterL) iter
+    return $ pCompFor foresp inep iterp
+
+compIterToPred :: (Traversal' QExpr (Maybe QCompIter)) -> Maybe QCompIter -> State RuleState (Maybe QCompIter -> Bool)
+compIterToPred path (Just (IterFor for _)) = pJustIterFor <$> compForToPred (path._Just.comp_iter_forL) for
+compIterToPred path Nothing = return isNothing
 
 --------------------------------------------------------------------------------
 
@@ -187,8 +211,7 @@ pParen _ _ = False
 
 
 pArguments :: [ArgumentPred] -> ArgumentsPred
-pArguments argsp args | length argsp == length args = and $ map (\(f, e) -> f e) (zip argsp args)
-pArguments _ _ = False
+pArguments argsp args = allApply argsp args
 
 pArgExpr :: ExprPred -> ArgumentPred
 pArgExpr argp (ArgExpr arg _) = argp arg
@@ -200,5 +223,21 @@ pArgVarArgsPosExpr _ _  = False
 
 
 pTuple :: [ExprPred] -> QExpr -> Bool
-pTuple esp (Tuple es _) | length esp == length es = and $ map (\(f, e) -> f e) (zip esp es)
+pTuple esp (Tuple es _) = allApply esp es
 pTuple _ _ = False
+
+
+pListComp compp (ListComp comp _) = compp comp
+pListComp _ _ = False
+
+pComprehension ep forp (Comprehension e for _) = ep e && forp for
+
+pCompFor foresp inep iterp (CompFor fores ine iter _) = inep ine && iterp iter && allApply foresp fores
+
+pJustIterFor :: CompForPred -> Maybe QCompIter -> Bool
+pJustIterFor forp (Just (IterFor for _)) = forp for
+pJustIterFor _ _ = False
+
+--------------------------------------------------------------------------------
+
+allApply fs xs = (length fs == length xs) && (and $ map (\(f, x) -> f x) (zip fs xs))

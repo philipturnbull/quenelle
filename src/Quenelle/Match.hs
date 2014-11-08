@@ -58,6 +58,10 @@ childExprs path e@(Paren pe _) =
 childExprs path e@(Tuple es _) =
     (path, e) : (tupleChildExprs (path.tuple_exprsL) es)
 
+childExprs path e@(ListComp comp _) =
+    (path, e) : (listCompExprChildExprs (path.list_comprehensionL) comp)
+
+
 argumentsChildExprs :: QPath -> [QArgument] -> [(QPath, QExpr)]
 argumentsChildExprs path args = [argumentChildExpr (path.call_argsL.(ix i)) arg | (arg, i) <- zip args [0..]]
 
@@ -66,4 +70,19 @@ argumentChildExpr path (ArgExpr e _) = (path.arg_exprL, e)
 argumentChildExpr path (ArgVarArgsPos e _) = (path.arg_exprL, e)
 
 tupleChildExprs :: (Traversal' QExpr [QExpr]) -> [QExpr] -> [(QPath, QExpr)]
-tupleChildExprs path es = concat [childExprs (path.(ix i)) e | (e, i) <- zip es [0..]]
+tupleChildExprs path es = concatChildExprs path es
+
+listCompExprChildExprs :: (Traversal' QExpr (QComprehension QExpr)) -> QComprehension QExpr -> [(QPath, QExpr)]
+listCompExprChildExprs path (Comprehension e for _) =
+    (childExprs (path.comprehension_exprL) e) ++ (compForChildExprs (path.comprehension_forL) for)
+
+compForChildExprs :: (Traversal' QExpr QCompFor) -> QCompFor -> [(QPath, QExpr)]
+compForChildExprs path (CompFor fores ine iter _) =
+    (concatChildExprs (path.comp_for_exprsL) fores) ++ (childExprs (path.comp_in_exprL) ine) ++ (compIterChildExprs (path.comp_for_iterL) iter)
+
+compIterChildExprs :: (Traversal' QExpr (Maybe QCompIter)) -> Maybe QCompIter -> [(QPath, QExpr)]
+compIterChildExprs path (Just (IterFor for _)) = compForChildExprs (path._Just.comp_iter_forL) for
+compIterChildExprs path Nothing = []
+
+concatChildExprs :: Traversal' QExpr [QExpr] -> [QExpr] -> [(QPath, QExpr)]
+concatChildExprs path es = concat [childExprs (path.(ix i)) e | (e, i) <- zip es [0..]]

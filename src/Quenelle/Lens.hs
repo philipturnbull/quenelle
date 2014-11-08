@@ -8,7 +8,7 @@ import Language.Python.Common.AST
 type QArgument = Argument ()
 type QCompFor = CompFor ()
 type QCompIter = CompIter ()
-type QComprehension = Comprehension ()
+type QComprehension a = Comprehension a ()
 type QExpr = Expr ()
 type QIdent = Ident ()
 type QOp = Op ()
@@ -220,6 +220,29 @@ makeLensesFor [
 makeLensesFor [
     ("param_tuple_annot", "param_tuple_annotL")
     ] ''ParamTuple
+
+-- Comprehension
+---- Comprehension
+makeLensesFor [
+    ("comprehension_expr", "comprehension_exprL"),
+    ("comprehension_for", "comprehension_forL")
+    ] ''Comprehension
+---- annot
+makeLensesFor [
+    ("comprehension_annot", "comprehension_annotL")
+    ] ''Comprehension
+
+-- CompFor
+---- CompFor
+makeLensesFor [
+    ("comp_for_exprs", "comp_for_exprsL"),
+    ("comp_in_expr", "comp_in_exprL"),
+    ("comp_for_iter", "comp_for_iterL")
+    ] ''CompFor
+---- annot
+makeLensesFor [
+    ("comp_for_annot", "comp_for_annotL")
+    ] ''CompFor
 
 -- CompIf
 ---- CompIf

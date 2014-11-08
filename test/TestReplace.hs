@@ -23,7 +23,8 @@ testReplace = TestLabel "doReplacement" $ TestList [
     testUnaryOp,
     testCall,
     testSubscript,
-    testTuple
+    testTuple,
+    testListComp
     ]
 
 fail = TestCase . assertFailure
@@ -104,4 +105,13 @@ testTuple = testList "Tuple" [
       t "()" "E1" "E1" "()"
     , t "(x,)" "(E1,)" "(E1,)" "(x,)"
     , t "(x, y)" "(E1, E2)" "(E2, E1)" "(y, x)"
+    ]
+
+testListComp = testList "ListComp" [
+      t "[x for x in xs]" "[E1 for E1 in E2]" "[E1 for E1 in E2]" "[x for x in xs]"
+    , t "[f(x) for x in xs]" "[E1(E2) for E2 in E3]" "map(E1, E3)" "map(f, xs)"
+    -- This isn't actually a valid transformation
+    , t "[(x, y) for x in xs for y in ys]" "[E1 for E2 in E3 for E4 in E5]" "[E1 for (E2, E4) in zip(E3, E5)]" "[(x, y) for (x, y) in zip(xs, ys)]"
+
+    , t "[f(x) for x in xs]" "[E1(E2) for E2 in E3]" "map(E1, E3)" "map(f, xs)"
     ]
