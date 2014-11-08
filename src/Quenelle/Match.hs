@@ -63,6 +63,7 @@ argumentsChildExprs path args = [argumentChildExpr (path.call_argsL.(ix i)) arg 
 
 argumentChildExpr :: (Traversal' QExpr QArgument) -> QArgument -> (QPath, QExpr)
 argumentChildExpr path (ArgExpr e _) = (path.arg_exprL, e)
+argumentChildExpr path (ArgVarArgsPos e _) = (path.arg_exprL, e)
 
 tupleChildExprs :: (Traversal' QExpr [QExpr]) -> [QExpr] -> [(QPath, QExpr)]
 tupleChildExprs path es = concat [childExprs (path.(ix i)) e | (e, i) <- zip es [0..]]

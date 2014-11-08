@@ -88,6 +88,10 @@ testCall = testList "Call" [
     , t "f(g)" "E1(E2)" "E2(E1)" "g(f)"
     , t "f(x, y)" "f(E1, E2)" "f(E2, E1)" "f(y, x)"
     , t "f(x + y)" "f(E1 + E2)" "f(E1, E2)" "f(x, y)"
+
+    , t "f(*x)" "E1(*E2)" "E1(E2)" "f(x)"
+    , t "f(*(x,))" "E1(*(E2,))" "E1(E2)" "f(x)"
+    , t "f(*(x, y))" "E1(*(E2, E3))" "E1(E2, E3)" "f(x, y)"
     ]
 
 testSubscript = testList "Subscript" [

@@ -127,6 +127,7 @@ argumentsToPred path args =
 
 argumentToPred :: (Traversal' QExpr QArgument) -> QArgument -> State RuleState ArgumentPred
 argumentToPred path (ArgExpr expr _) = pArgExpr <$> exprToPred (path.arg_exprL) expr
+argumentToPred path (ArgVarArgsPos expr _) = pArgVarArgsPosExpr <$> exprToPred (path.arg_exprL) expr
 
 --------------------------------------------------------------------------------
 
@@ -192,6 +193,11 @@ pArguments _ _ = False
 pArgExpr :: ExprPred -> ArgumentPred
 pArgExpr argp (ArgExpr arg _) = argp arg
 pArgExpr _ _  = False
+
+pArgVarArgsPosExpr :: ExprPred -> ArgumentPred
+pArgVarArgsPosExpr argp (ArgVarArgsPos arg _) = argp arg
+pArgVarArgsPosExpr _ _  = False
+
 
 pTuple :: [ExprPred] -> QExpr -> Bool
 pTuple esp (Tuple es _) | length esp == length es = and $ map (\(f, e) -> f e) (zip esp es)
