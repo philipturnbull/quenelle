@@ -83,6 +83,10 @@ bindVar name path = modify $ \s -> s { ruleBoundVars = ruleBoundVars s ++ [(name
 
 --------------------------------------------------------------------------------
 
+exprsToPred :: Traversal' QExpr [QExpr] -> [QExpr] -> State RuleState [ExprPred]
+exprsToPred path es = sequence [exprToPred (path.ix i) e | (e, i) <- zip es [0..]]
+
+
 exprToPred :: QPath -> QExpr -> State RuleState ExprPred
 exprToPred path (Var x _) =
     case classifyVar x of
@@ -119,7 +123,7 @@ exprToPred path (Subscript subscriptee subscript_expr _) = do
 exprToPred path (Paren e _) = pParen <$> exprToPred (path.paren_exprL) e
 
 exprToPred path (Tuple es _) =
-    pTuple <$> sequence [exprToPred (path.tuple_exprsL.ix i) e | (e, i) <- zip es [0..]]
+    pTuple <$> exprsToPred (path.tuple_exprsL) es
 
 exprToPred path (ListComp comp _) = pListComp <$> comprehensionToPred (path.list_comprehensionL) comp
 
@@ -143,7 +147,7 @@ comprehensionToPred path (Comprehension e for _) = do
 
 compForToPred :: Traversal' QExpr QCompFor -> QCompFor -> State RuleState CompForPred
 compForToPred path (CompFor fores ine iter _) = do
-    foresp <- sequence [exprToPred (path.comp_for_exprsL.ix i) e | (e, i) <- zip fores [0..]]
+    foresp <- exprsToPred (path.comp_for_exprsL) fores
     inep <- exprToPred (path.comp_in_exprL) ine
     iterp <- compIterToPred (path.comp_for_iterL) iter
     return $ pCompFor foresp inep iterp
