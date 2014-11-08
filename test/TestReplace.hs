@@ -114,4 +114,6 @@ testListComp = testList "ListComp" [
     , t "[(x, y) for x in xs for y in ys]" "[E1 for E2 in E3 for E4 in E5]" "[E1 for (E2, E4) in zip(E3, E5)]" "[(x, y) for (x, y) in zip(xs, ys)]"
 
     , t "[f(x) for x in xs]" "[E1(E2) for E2 in E3]" "map(E1, E3)" "map(f, xs)"
+    , t "[x for x in xs if f(x)]" "[E1 for E1 in E2 if E3(E1)]" "filter(E3, E2)" "filter(f, xs)"
+    , t "[x for x in xs if x]" "[E1 for E1 in E2 if E1]" "filter(None, E2)" "filter(None, xs)"
     ]

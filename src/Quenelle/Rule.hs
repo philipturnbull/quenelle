@@ -24,6 +24,7 @@ type ArgumentPred = QArgument -> Bool
 type ArgumentsPred = [QArgument] -> Bool
 type ExprPred = QExpr -> Bool
 type ComprehensionPred a = QComprehension a -> Bool
+type CompIfPred = QCompIf -> Bool
 type CompForPred = QCompFor -> Bool
 type ParameterPred = QParameter -> Bool
 
@@ -152,8 +153,15 @@ compForToPred path (CompFor fores ine iter _) = do
     iterp <- compIterToPred (path.comp_for_iterL) iter
     return $ pCompFor foresp inep iterp
 
+compIfToPred :: Traversal' QExpr QCompIf -> QCompIf -> State RuleState CompIfPred
+compIfToPred path (CompIf if_ iter _) = do
+    ifp <- exprToPred (path.comp_ifL) if_
+    iterp <- compIterToPred (path.comp_if_iterL) iter
+    return $ pCompIf ifp iterp
+
 compIterToPred :: Traversal' QExpr (Maybe QCompIter) -> Maybe QCompIter -> State RuleState (Maybe QCompIter -> Bool)
 compIterToPred path (Just (IterFor for _)) = pJustIterFor <$> compForToPred (path._Just.comp_iter_forL) for
+compIterToPred path (Just (IterIf if_ _)) = pJustIterIf <$> compIfToPred (path._Just.comp_iter_ifL) if_
 compIterToPred path Nothing = return isNothing
 
 --------------------------------------------------------------------------------
@@ -234,9 +242,15 @@ pComprehension ep forp (Comprehension e for _) = ep e && forp for
 
 pCompFor foresp inep iterp (CompFor fores ine iter _) = inep ine && iterp iter && allApply foresp fores
 
+pCompIf ifp iterp (CompIf if_ iter _) = ifp if_ && iterp iter
+
 pJustIterFor :: CompForPred -> Maybe QCompIter -> Bool
 pJustIterFor forp (Just (IterFor for _)) = forp for
 pJustIterFor _ _ = False
+
+pJustIterIf :: CompIfPred -> Maybe QCompIter -> Bool
+pJustIterIf ifp (Just (IterIf if_ _)) = ifp if_
+pJustIterIf _ _ = False
 
 --------------------------------------------------------------------------------
 

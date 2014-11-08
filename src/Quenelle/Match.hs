@@ -77,8 +77,13 @@ compForChildExprs :: Traversal' QExpr QCompFor -> QCompFor -> [(QPath, QExpr)]
 compForChildExprs path (CompFor fores ine iter _) =
     concatChildExprs (path.comp_for_exprsL) fores ++ childExprs (path.comp_in_exprL) ine ++ compIterChildExprs (path.comp_for_iterL) iter
 
+compIfChildExprs :: Traversal' QExpr QCompIf -> QCompIf -> [(QPath, QExpr)]
+compIfChildExprs path (CompIf if_ iter _) =
+    childExprs (path.comp_ifL) if_ ++ compIterChildExprs (path.comp_if_iterL) iter
+
 compIterChildExprs :: Traversal' QExpr (Maybe QCompIter) -> Maybe QCompIter -> [(QPath, QExpr)]
 compIterChildExprs path (Just (IterFor for _)) = compForChildExprs (path._Just.comp_iter_forL) for
+compIterChildExprs path (Just (IterIf if_ _)) = compIfChildExprs (path._Just.comp_iter_ifL) if_
 compIterChildExprs path Nothing = []
 
 concatChildExprs :: Traversal' QExpr [QExpr] -> [QExpr] -> [(QPath, QExpr)]

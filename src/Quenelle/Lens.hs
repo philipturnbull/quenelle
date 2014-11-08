@@ -7,6 +7,7 @@ import Language.Python.Common.AST
 
 type QArgument = Argument ()
 type QCompFor = CompFor ()
+type QCompIf = CompIf ()
 type QCompIter = CompIter ()
 type QComprehension a = Comprehension a ()
 type QExpr = Expr ()
