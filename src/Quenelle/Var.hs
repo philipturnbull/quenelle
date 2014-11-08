@@ -17,9 +17,9 @@ data VarType = Expression | BoundExpression | Variable | Normal
 
 classifyVar :: QIdent -> (VarType, String)
 classifyVar x = f (ident_string x)
-    where f y@('E':[]) = (Expression, y)
+    where f y@"E" = (Expression, y)
           f y@('E':num) | all isDigit num = (BoundExpression, y)
-          f y@('V':[]) = (Variable, y)
+          f y@"V" = (Variable, y)
           f y = (Normal, y)
 
 validateVars :: (Eq a) => [(String, a)] -> Maybe [(String, a)]
@@ -28,9 +28,8 @@ validateVars vars = mapM validateVar $ Map.toList $ groupVars vars
 validateVar :: (Eq a) => (String, NonEmpty a) -> Maybe (String, a)
 validateVar (name, NonEmpty e []) = Just (name, e)
 validateVar (name, NonEmpty e es) =
-    case all (== e) es of -- only bind multiple variables if they all match
-        True -> Just (name, e)
-        False -> Nothing
+    if all (== e) es then -- only bind multiple variables if they all match
+        Just (name, e) else Nothing
 
 groupVars :: (Eq a) => [(String, a)] -> Map.Map String (NonEmpty a)
 groupVars = f Map.empty

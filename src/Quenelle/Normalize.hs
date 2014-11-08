@@ -75,12 +75,12 @@ _normalizeExpr (Yield yield_expr expr_annot) = do
 _normalizeExpr (Generator gen_comprehension expr_annot) = do
     gen_comprehension_expr' <- _normalizeExpr $ comprehension_expr gen_comprehension
     gen_comprehension_for' <- _normalizeCompFor $ comprehension_for gen_comprehension
-    gen_comprehension' <- return $ Comprehension gen_comprehension_expr' gen_comprehension_for' ()
+    let gen_comprehension' = Comprehension gen_comprehension_expr' gen_comprehension_for' ()
     return $ Generator gen_comprehension' ()
 _normalizeExpr (ListComp list_comprehension expr_annot) = do
     list_comprehension_expr' <- _normalizeExpr $ comprehension_expr list_comprehension
     list_comprehension_for' <- _normalizeCompFor $ comprehension_for list_comprehension
-    list_comprehension' <- return $ Comprehension list_comprehension_expr' list_comprehension_for' ()
+    let list_comprehension' = Comprehension list_comprehension_expr' list_comprehension_for' ()
     return $ ListComp list_comprehension' ()
 _normalizeExpr (List list_exprs expr_annot) = do
     list_exprs' <- mapM _normalizeExpr list_exprs
@@ -92,7 +92,7 @@ _normalizeExpr (DictComp dict_comprehension expr_annot) = do
     dict_comprehension_l' <- _normalizeExpr $ fst $ comprehension_expr dict_comprehension
     dict_comprehension_r' <- _normalizeExpr $ snd $ comprehension_expr dict_comprehension
     dict_comprehension_for' <- _normalizeCompFor $ comprehension_for dict_comprehension
-    dict_comprehension' <- return $ Comprehension (dict_comprehension_l', dict_comprehension_r') dict_comprehension_for' ()
+    let dict_comprehension' = Comprehension (dict_comprehension_l', dict_comprehension_r') dict_comprehension_for' ()
     return $ DictComp dict_comprehension' ()
 _normalizeExpr (Set set_exprs expr_annot) = do
     set_exprs' <- mapM _normalizeExpr set_exprs
@@ -100,7 +100,7 @@ _normalizeExpr (Set set_exprs expr_annot) = do
 _normalizeExpr (SetComp set_comprehension expr_annot) = do
     set_comprehension_expr' <- _normalizeExpr $ comprehension_expr set_comprehension
     set_comprehension_for' <- _normalizeCompFor $ comprehension_for set_comprehension
-    set_comprehension' <- return $ Comprehension set_comprehension_expr' set_comprehension_for' ()
+    let set_comprehension' = Comprehension set_comprehension_expr' set_comprehension_for' ()
     return $ SetComp set_comprehension' ()
 _normalizeExpr (Starred starred_expr expr_annot) = do
     starred_expr' <- _normalizeExpr starred_expr

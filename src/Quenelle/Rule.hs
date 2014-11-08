@@ -23,7 +23,7 @@ import Quenelle.Var
 type ArgumentPred = QArgument -> Bool
 type ArgumentsPred = [QArgument] -> Bool
 type ExprPred = QExpr -> Bool
-type ComprehensionPred a = (QComprehension a) -> Bool
+type ComprehensionPred a = QComprehension a -> Bool
 type CompForPred = QCompFor -> Bool
 type ParameterPred = QParameter -> Bool
 
@@ -37,12 +37,11 @@ data ExprRule = ExprRule {
 
 runExprRule :: ExprRule -> QExpr -> Maybe [(String, QExpr)]
 runExprRule rule expr =
-    case (exprRulePred rule) expr of
-        False -> Nothing
-        True -> readExprVars expr (exprRuleBoundVars rule)
+    if exprRulePred rule expr then
+        readExprVars expr (exprRuleBoundVars rule) else Nothing
 
 readExprVars :: QExpr -> [(String, QPath)] -> Maybe [(String, QExpr)]
-readExprVars expr vars = mapM (readExprPath expr) vars
+readExprVars expr = mapM (readExprPath expr)
 
 readExprPath :: QExpr -> (String, QPath) -> Maybe (String, QExpr)
 -- If exprRulePred succeeds, then every path should be valid
@@ -120,36 +119,36 @@ exprToPred path (Subscript subscriptee subscript_expr _) = do
 exprToPred path (Paren e _) = pParen <$> exprToPred (path.paren_exprL) e
 
 exprToPred path (Tuple es _) =
-    pTuple <$> sequence [exprToPred (path.tuple_exprsL.(ix i)) e | (e, i) <- zip es [0..]]
+    pTuple <$> sequence [exprToPred (path.tuple_exprsL.ix i) e | (e, i) <- zip es [0..]]
 
 exprToPred path (ListComp comp _) = pListComp <$> comprehensionToPred (path.list_comprehensionL) comp
 
 --------------------------------------------------------------------------------
 
-argumentsToPred :: (Traversal' QExpr [QArgument]) -> [QArgument] -> State RuleState ArgumentsPred
+argumentsToPred :: Traversal' QExpr [QArgument] -> [QArgument] -> State RuleState ArgumentsPred
 argumentsToPred path args =
-    pArguments <$> sequence [argumentToPred (path.(ix i)) arg | (arg, i) <- zip args [0..]]
+    allApply <$> sequence [argumentToPred (path.ix i) arg | (arg, i) <- zip args [0..]]
 
-argumentToPred :: (Traversal' QExpr QArgument) -> QArgument -> State RuleState ArgumentPred
+argumentToPred :: Traversal' QExpr QArgument -> QArgument -> State RuleState ArgumentPred
 argumentToPred path (ArgExpr expr _) = pArgExpr <$> exprToPred (path.arg_exprL) expr
 argumentToPred path (ArgVarArgsPos expr _) = pArgVarArgsPosExpr <$> exprToPred (path.arg_exprL) expr
 
 --------------------------------------------------------------------------------
 
-comprehensionToPred :: (Traversal' QExpr (QComprehension QExpr)) -> (QComprehension QExpr) -> State RuleState (ComprehensionPred QExpr)
+comprehensionToPred :: Traversal' QExpr (QComprehension QExpr) -> QComprehension QExpr -> State RuleState (ComprehensionPred QExpr)
 comprehensionToPred path (Comprehension e for _) = do
     ep <- exprToPred (path.comprehension_exprL) e
     forp <- compForToPred (path.comprehension_forL) for
     return $ pComprehension ep forp
 
-compForToPred :: (Traversal' QExpr QCompFor) -> QCompFor -> State RuleState CompForPred
+compForToPred :: Traversal' QExpr QCompFor -> QCompFor -> State RuleState CompForPred
 compForToPred path (CompFor fores ine iter _) = do
-    foresp <- sequence [exprToPred (path.comp_for_exprsL.(ix i)) e | (e, i) <- zip fores [0..]]
+    foresp <- sequence [exprToPred (path.comp_for_exprsL.ix i) e | (e, i) <- zip fores [0..]]
     inep <- exprToPred (path.comp_in_exprL) ine
     iterp <- compIterToPred (path.comp_for_iterL) iter
     return $ pCompFor foresp inep iterp
 
-compIterToPred :: (Traversal' QExpr (Maybe QCompIter)) -> Maybe QCompIter -> State RuleState (Maybe QCompIter -> Bool)
+compIterToPred :: Traversal' QExpr (Maybe QCompIter) -> Maybe QCompIter -> State RuleState (Maybe QCompIter -> Bool)
 compIterToPred path (Just (IterFor for _)) = pJustIterFor <$> compForToPred (path._Just.comp_iter_forL) for
 compIterToPred path Nothing = return isNothing
 
@@ -188,7 +187,7 @@ pOp :: QOp -> QOp -> Bool
 pOp x y = x == y
 
 pBinaryOp :: (QOp -> Bool) -> ExprPred -> ExprPred -> ExprPred
-pBinaryOp opp lp rp (BinaryOp op l r _) = and [opp op, lp l, rp r]
+pBinaryOp opp lp rp (BinaryOp op l r _) = opp op && lp l && rp r
 pBinaryOp _ _ _ _ = False
 
 pUnaryOp :: (QOp -> Bool) -> ExprPred -> ExprPred
@@ -209,9 +208,6 @@ pParen :: ExprPred -> ExprPred
 pParen ep (Paren e _) = ep e
 pParen _ _ = False
 
-
-pArguments :: [ArgumentPred] -> ArgumentsPred
-pArguments argsp args = allApply argsp args
 
 pArgExpr :: ExprPred -> ArgumentPred
 pArgExpr argp (ArgExpr arg _) = argp arg
@@ -240,4 +236,4 @@ pJustIterFor _ _ = False
 
 --------------------------------------------------------------------------------
 
-allApply fs xs = (length fs == length xs) && (and $ map (\(f, x) -> f x) (zip fs xs))
+allApply fs xs = (length fs == length xs) && all (\(f, x) -> f x) (zip fs xs)
