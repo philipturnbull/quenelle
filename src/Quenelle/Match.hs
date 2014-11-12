@@ -63,11 +63,11 @@ childExprs path e@(ListComp comp _) =
 
 
 argumentsChildExprs :: QPath -> [QArgument] -> [(QPath, QExpr)]
-argumentsChildExprs path args = [argumentChildExpr (path.call_argsL.ix i) arg | (arg, i) <- zip args [0..]]
+argumentsChildExprs path args = concat [argumentChildExprs (path.call_argsL.ix i) arg | (arg, i) <- zip args [0..]]
 
-argumentChildExpr :: Traversal' QExpr QArgument -> QArgument -> (QPath, QExpr)
-argumentChildExpr path (ArgExpr e _) = (path.arg_exprL, e)
-argumentChildExpr path (ArgVarArgsPos e _) = (path.arg_exprL, e)
+argumentChildExprs :: Traversal' QExpr QArgument -> QArgument -> [(QPath, QExpr)]
+argumentChildExprs path (ArgExpr e _) = childExprs (path.arg_exprL) e
+argumentChildExprs path (ArgVarArgsPos e _) = childExprs (path.arg_exprL) e
 
 listCompExprChildExprs :: Traversal' QExpr (QComprehension QExpr) -> QComprehension QExpr -> [(QPath, QExpr)]
 listCompExprChildExprs path (Comprehension e for _) =
