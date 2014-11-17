@@ -1,5 +1,6 @@
 {-# LANGUAGE ImpredicativeTypes #-}
 module Quenelle.Replace (
+    ExprReplacement(..),
     parseExprReplacement,
     doReplacement
 ) where
