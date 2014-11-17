@@ -4,6 +4,7 @@ import Control.Monad
 import System.Exit
 import Test.HUnit
 
+import TestFile
 import TestMatch
 import TestNormalize
 import TestParse
@@ -12,6 +13,7 @@ import TestRule
 import TestVar
 
 tests = TestList [
+    testFile,
     testMatch,
     testNormalize,
     testParse,
