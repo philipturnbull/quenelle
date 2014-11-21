@@ -25,5 +25,5 @@ Test-Suite test-quenelle
   type:                exitcode-stdio-1.0
   main-is:             Test.hs
   hs-source-dirs:      src, test
-  build-depends:       base >=4.6 && <4.7, HUnit, language-python, lens, transformers, mtl, NonEmpty, containers, parsec
+  build-depends:       base >=4.6 && <4.7, HUnit, language-python, lens, transformers, mtl, NonEmpty, containers, parsec, QuickCheck
   default-language:    Haskell2010

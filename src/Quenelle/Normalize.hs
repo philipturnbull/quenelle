@@ -169,6 +169,7 @@ _normalizeSlice (SliceProper slice_lower slice_upper slice_stride slice_annot) =
     slice_upper' <- maybe (return Nothing) (\x -> Just <$> _normalizeExpr x) slice_upper
     slice_stride' <- case slice_stride of
            Just (Just e) -> Just . Just <$> _normalizeExpr e
+           Just Nothing -> return $ Just Nothing
            _ -> return Nothing
     return $ SliceProper slice_lower' slice_upper' slice_stride' ()
 _normalizeSlice (SliceExpr slice_expr slice_annot) = do

@@ -9,10 +9,12 @@ import Test.HUnit.Base
 
 import Quenelle.Normalize
 
+import QuickCheck
+
 testRoundTrip :: String -> ExprSpan -> Test
 testRoundTrip str e = TestCase $ assertEqual ("round-trip " ++ str) (prettyText e) (prettyText $ normalizeExpr e)
 
-roundTrip str =
+parseAndRoundTrip str =
     case parseExpr str "" of
         Left _ -> TestCase $ assertFailure $ "Failed to parse: " ++ str
         Right (e, _) -> testRoundTrip str e
@@ -56,5 +58,8 @@ testNormalize = TestLabel "Normalize" $ TestList [
     --, r "yield"
     , r "(0 for x in 0)"
     , r "(lambda x, y: 0)(0)"
+
+    , qc roundTrip 10000 "QuickCheckNormalize"
     ]
-    where r = roundTrip
+    where r = parseAndRoundTrip
+          roundTrip e = prettyText e == prettyText (normalizeExpr e)
