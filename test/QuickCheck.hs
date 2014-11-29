@@ -16,12 +16,10 @@ import Quenelle.Lens
 -- Some helpers to make the following Arbitrary definitions readable
 annot = return ()
 emptyl = return []
-ident str = Ident str ()
+ident name = return $ Ident name ()
+idents names = elements [Ident name () | name <- names]
 nothing = return Nothing
 
-
-instance Arbitrary QIdent where
-    arbitrary = elements [ident "x", ident "y", ident "z"]
 
 instance Arbitrary QOp where
     arbitrary = elements [
@@ -93,14 +91,14 @@ instance Arbitrary QArgument where
           ArgExpr <$> arbitrary <*> annot
         , ArgVarArgsPos <$> arbitrary <*> annot
         , ArgVarArgsKeyword <$> arbitrary <*> annot
-        , ArgKeyword <$> arbitrary <*> arbitrary <*> annot
+        , ArgKeyword <$> idents ["arg1", "arg2"] <*> arbitrary <*> annot
         ]
         where annot = return ()
 
     shrink (ArgExpr e ()) = [ArgExpr e' () | e' <- shrink e]
     shrink (ArgVarArgsPos e ()) = [ArgVarArgsPos e' () | e' <- shrink e]
     shrink (ArgVarArgsKeyword e ()) = [ArgVarArgsKeyword e' () | e' <- shrink e]
-    shrink (ArgKeyword k v ()) = [ArgKeyword k' v' () | (k', v') <- shrink (k, v)]
+    shrink (ArgKeyword k v ()) = [ArgKeyword k v' () | v' <- shrink v]
 
 instance Arbitrary QSlice where
     arbitrary = oneof [
@@ -113,26 +111,56 @@ instance Arbitrary QSlice where
     shrink (SliceExpr e ()) = [SliceExpr e' () | e' <- shrink e]
     shrink _ = []
 
+instance Arbitrary QParamTuple where
+    arbitrary = oneof [
+          ParamTupleName <$> paramIdents <*> annot
+        , ParamTuple <$> arbitrary <*> annot
+        ]
+        where annot = return ()
+              paramIdents = idents ["t1", "t2", "t3"]
+
+    shrink (ParamTuple tuple ()) = [ParamTuple tuple' () | tuple' <- shrink tuple]
+    shrink _ = []
+
+instance Arbitrary QParameter where
+    arbitrary = oneof [
+          Param <$> paramIdents <*> arbitrary <*> arbitrary <*> annot
+        , VarArgsPos <$> paramIdents <*> arbitrary <*> annot
+        , VarArgsKeyword <$> paramIdents <*> arbitrary <*> annot
+        , EndPositional <$> annot
+        , UnPackTuple <$> arbitrary <*> arbitrary <*> annot
+        ]
+        where annot = return ()
+              paramIdents = idents ["p1", "p2", "p3"]
+
+    shrink (Param i annot def ()) = [Param i annot' def' () | (annot', def') <- shrink (annot, def)]
+    shrink (VarArgsPos i annot ()) = [VarArgsPos i annot' () | annot' <- shrink annot]
+    shrink (VarArgsKeyword i annot ()) = [VarArgsKeyword i annot' () | annot' <- shrink annot]
+    shrink (EndPositional ()) = []
+    shrink (UnPackTuple tuple def ()) = [UnPackTuple tuple' def' () | (tuple', def') <- shrink (tuple, def)]
 
 instance Arbitrary QExpr where
     arbitrary = frequency [
-          (1, Var <$> arbitrary <*> annot)
+          (1, Var <$> ident "vvv" <*> annot)
         , (1, arbitrary >>= \n -> return $ Int n (show n) ())
         , (1, arbitrary >>= \n -> return $ LongInt n (show n) ())
         , (1, arbitrary >>= \n -> return $ Float n (show n) ())
-        , (2, Call <$> arbitrary <*> return [] <*> annot)
+        , (1, Bool <$> arbitrary <*> annot)
+        , (2, Call <$> arbitrary <*> emptyl <*> annot)
         , (1, Call <$> arbitrary <*> arbitrary <*> annot)
         , (1, Subscript <$> arbitrary <*> arbitrary <*> annot)
-        , (2, SlicedExpr <$> arbitrary <*> return [] <*> annot)
+        , (2, SlicedExpr <$> arbitrary <*> emptyl <*> annot)
         , (1, SlicedExpr <$> arbitrary <*> arbitrary <*> annot)
         , (1, CondExpr <$> arbitrary <*> arbitrary <*> arbitrary <*> annot)
         , (1, BinaryOp <$> arbitrary <*> arbitrary <*> arbitrary <*> annot)
         , (1, UnaryOp <$> arbitrary <*> arbitrary <*> annot)
         , (2, Lambda <$> emptyl <*> arbitrary <*> annot)
+        , (1, Lambda <$> arbitrary <*> arbitrary <*> annot)
         , (2, Tuple <$> emptyl <*> annot)
         , (1, Tuple <$> arbitrary <*> annot)
         , (1, Yield <$> arbitrary <*> annot)
         , (1, Generator <$> arbitrary <*> annot)
+        , (1, ListComp <$> arbitrary <*> annot)
 
         , (2, List <$> emptyl <*> annot)
         , (1, List <$> arbitrary <*> annot)
@@ -147,11 +175,12 @@ instance Arbitrary QExpr where
         ]
 
     shrink (Call f args ()) = f : [Call f' args' () | (f', args') <- shrink (f, args)]
+    shrink (Subscript s e ()) = [s, e] ++ [Subscript s' e' () | (s', e') <- shrink (s, e)]
     shrink (SlicedExpr e ss ()) = e : [SlicedExpr e' ss' () | (e', ss') <- shrink (e, ss)]
     shrink (CondExpr t c f ()) = [t, c, f] ++ [CondExpr t' c' f' () | (t', c', f') <- shrink (t, c, f)]
     shrink (BinaryOp op l r ()) = [l, r] ++ [BinaryOp op l' r' () | (l', r') <- shrink (l, r)]
     shrink (UnaryOp op e ()) = e : [UnaryOp op e' () | e' <- shrink e]
-    shrink (Lambda [] e ()) = [e]
+    shrink (Lambda args e ()) = [e] ++ [Lambda args' e' () | (args', e') <- shrink (args, e)]
     shrink (Tuple [e] ()) = e : [Tuple [e'] () | e' <- shrink e]
     shrink (Tuple xs ()) = [Tuple xs' () | xs' <- shrink xs]
     shrink (Yield Nothing ()) = []
@@ -159,6 +188,7 @@ instance Arbitrary QExpr where
     -- Try to strip away the generator and look at the generator expression instead
     shrink (Generator c@(Comprehension e (CompFor fes ie _ ()) ()) ()) =
         e : ie : fes ++ [Generator c' () | c' <- shrink c]
+    shrink (ListComp c@(Comprehension e (CompFor fes ie _ ()) ()) ()) = e : ie : fes ++ [ListComp c' () | c' <- shrink c]
     shrink (List [e] ()) = e : [List [e'] () | e' <- shrink e]
     shrink (List es ()) = [List es' () | es' <- shrink es]
     -- Try to strip away the generator and look the the key/values instead

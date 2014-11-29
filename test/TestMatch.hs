@@ -8,13 +8,17 @@ import Language.Python.Common.Pretty (prettyText)
 import Language.Python.Version2.Parser
 import Test.HUnit.Base
 
+import Quenelle.Lens
 import Quenelle.Match
 import Quenelle.Normalize
 import Quenelle.Replace
 import Quenelle.Rule
 
+import QuickCheck
+
 testMatch = TestList [
-    testMatchExprRule
+      testMatchExprRule
+    , quickCheckMatchExprRule
     ]
 
 allMatchBindings matches = map exprMatchBindings matches
@@ -32,6 +36,8 @@ testRule rulestr exprstr expected =
 t = testRule
 zero = Int 0 "0" ()
 one = Int 1 "1" ()
+two = Int 2 "2" ()
+three = Int 3 "3" ()
 add l r = BinaryOp (Plus ()) l r ()
 parens e = Paren e ()
 var s = Var (Ident s ()) ()
@@ -83,3 +89,16 @@ testCall = testList "Call" [
       t "E1()" "f()" [[("E1", var "f")]]
     , t "E1()" "0()" [[("E1", zero)]]
     ]
+
+quickCheckMatchExprRule = qc count_matches 10000 "quickCheckMatchExprRule"
+
+-- The Expr Arbitrary instance generates (Var "vvv ()) nodes. Convert the expr
+-- to a string and count the number of "vvv" substrings. This should match the
+-- number of matches found by matchExprRule. This mostly tests that Quenelle.Match.childExprs
+-- correctly recuses to child expressions.
+count_matches :: QExpr -> Bool
+count_matches expr = count_vvv 0 (prettyText expr) == length (matchExprRule rule expr)
+    where (Right rule) = parseExprRule "vvv"
+          count_vvv acc [] = acc
+          count_vvv acc ('v':'v':'v':str) = count_vvv (acc + 1) str
+          count_vvv acc (_:str) = count_vvv acc str

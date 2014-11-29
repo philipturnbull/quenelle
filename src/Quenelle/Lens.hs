@@ -14,6 +14,7 @@ type QExpr = Expr ()
 type QIdent = Ident ()
 type QOp = Op ()
 type QParameter = Parameter ()
+type QParamTuple = ParamTuple ()
 type QSlice = Slice ()
 
 type QPath = Traversal QExpr QExpr QExpr QExpr
