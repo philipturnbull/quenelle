@@ -138,6 +138,8 @@ exprToPred path (CondExpr t c f _) = do
 
 exprToPred path (Paren e _) = pParen <$> exprToPred (path.paren_exprL) e
 
+exprToPred path (StringConversion e _) = pStringConversion <$> exprToPred (path.backquoted_exprL) e
+
 exprToPred path (Tuple es _) =
     pTuple <$> exprsToPred (path.tuple_exprsL) es
 
@@ -306,6 +308,10 @@ pJustIterFor _ _ = False
 pJustIterIf :: CompIfPred -> Maybe QCompIter -> Bool
 pJustIterIf ifp (Just (IterIf if_ _)) = ifp if_
 pJustIterIf _ _ = False
+
+pStringConversion :: ExprPred -> ExprPred
+pStringConversion exprp (StringConversion expr _) = exprp expr
+pStringConversion _ _ = False
 
 --------------------------------------------------------------------------------
 

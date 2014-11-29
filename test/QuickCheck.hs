@@ -173,6 +173,7 @@ instance Arbitrary QExpr where
         , (1, Set <$> arbitrary <*> annot)
 
         , (1, Paren <$> arbitrary <*> annot)
+        , (1, StringConversion <$> arbitrary <*> annot)
         ]
 
     shrink (Call f args ()) = f : [Call f' args' () | (f', args') <- shrink (f, args)]

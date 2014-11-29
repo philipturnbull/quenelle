@@ -67,6 +67,9 @@ childExprs path e@(SlicedExpr s ss _) =
 childExprs path e@(Paren pe _) =
     (path, e) : childExprs (path.paren_exprL) pe
 
+childExprs path e@(StringConversion qe _) =
+    (path, e) : childExprs (path.backquoted_exprL) qe
+
 childExprs path e@(Tuple es _) =
     (path, e) : concatChildExprs (path.tuple_exprsL) es
 

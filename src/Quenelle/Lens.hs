@@ -153,7 +153,7 @@ makeLensesFor [
     ] ''Expr
 ---- StringConversion
 makeLensesFor [
-    ("backquoted_exp", "backquoted_expL")
+    ("backquoted_expr", "backquoted_exprL")
     ] ''Expr
 ---- annot
 makeLensesFor [

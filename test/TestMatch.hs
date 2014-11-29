@@ -55,6 +55,7 @@ testMatchExprRule = testList "matchExprRule" [
     , testLambda
     , testCondExpr
     , testSlicedExpr
+    , testStringConversion
     ]
 
 testIntegers = testList "Int/LongInt" [
@@ -111,6 +112,10 @@ testSlicedExpr = testList "SlicedExpr" [
     , t "E1[E2:E3]" "0[1:2]" [[("E1", zero), ("E2", one), ("E3", two)]]
     , t "E1[E2:E3:]" "0[1:2:]" [[("E1", zero), ("E2", one), ("E3", two)]]
     , t "E1[E2:E3:E4]" "0[1:2:3]" [[("E1", zero), ("E2", one), ("E3", two), ("E4", three)]]
+    ]
+
+testStringConversion = testList "StringConversion" [
+      t "`E1`" "`0`" [[("E1", zero)]]
     ]
 
 quickCheckMatchExprRule = qc count_matches 10000 "quickCheckMatchExprRule"
