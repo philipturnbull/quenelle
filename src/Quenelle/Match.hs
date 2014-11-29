@@ -43,6 +43,7 @@ childExprs path e@Var{} = [(path, e)]
 childExprs path e@Int{} = [(path, e)]
 childExprs path e@LongInt{} = [(path, e)]
 childExprs path e@Float{} = [(path, e)]
+childExprs path e@Imaginary{} = [(path, e)]
 childExprs path e@Bool{} = [(path, e)]
 childExprs path e@(BinaryOp _ l r _) =
     (path, e) : childExprs (path.left_op_argL) l ++ childExprs (path.right_op_argL) r

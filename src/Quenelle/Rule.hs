@@ -100,6 +100,8 @@ exprToPred path (Var x _) =
 
 exprToPred path (Int x _ _) = return $ pInt x
 exprToPred path (LongInt x _ _) = return $ pLongInt x
+exprToPred path (Float x _ _) = return $ pFloat x
+exprToPred path (Imaginary x _ _) = return $ pImaginary x
 exprToPred path (Bool x _) = return $ pBool x
 
 exprToPred path (BinaryOp op l r _) = do
@@ -230,6 +232,13 @@ pLongInt :: Integer -> ExprPred
 pLongInt x (LongInt y _ _) = x == y
 pLongInt _ _ = False
 
+pFloat :: Double -> ExprPred
+pFloat x (Float y _ _) = x == y
+pFloat _ _ = False
+
+pImaginary :: Double -> ExprPred
+pImaginary x (Imaginary y _ _) = x == y
+pImaginary _ _ = False
 
 pBool :: Bool -> ExprPred
 pBool x (Bool y _) = x == y

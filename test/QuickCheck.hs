@@ -146,6 +146,7 @@ instance Arbitrary QExpr where
         , (1, arbitrary >>= \n -> return $ Int n (show n) ())
         , (1, arbitrary >>= \n -> return $ LongInt n (show n) ())
         , (1, arbitrary >>= \n -> return $ Float n (show n) ())
+        , (1, arbitrary >>= \n -> return $ Imaginary n (show n ++ "j") ())
         , (1, Bool <$> arbitrary <*> annot)
         , (2, Call <$> arbitrary <*> emptyl <*> annot)
         , (1, Call <$> arbitrary <*> arbitrary <*> annot)
