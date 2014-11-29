@@ -104,6 +104,7 @@ instance Arbitrary QSlice where
     arbitrary = oneof [
           SliceProper <$> arbitrary <*> arbitrary <*> arbitrary <*> annot
         , SliceExpr <$> arbitrary <*> annot
+        , SliceEllipsis <$> annot
         ]
         where annot = return ()
 
