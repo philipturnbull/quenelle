@@ -111,6 +111,10 @@ exprToPred path (UnaryOp op arg _) = do
     argp <- exprToPred (path.op_argL) arg
     return $ pUnaryOp (pOp op) argp
 
+exprToPred path (Lambda [] body _) = do
+    bodyp <- exprToPred (path.lambda_bodyL) body
+    return $ pLambda bodyp
+
 exprToPred path (Call fun args _) = do
     funp <- exprToPred (path.call_funL) fun
     argsp <- argumentsToPred (path.call_argsL) args
@@ -120,6 +124,17 @@ exprToPred path (Subscript subscriptee subscript_expr _) = do
     subscripteep <- exprToPred (path.subscripteeL) subscriptee
     subscript_exprp <- exprToPred (path.subscript_exprL) subscript_expr
     return $ pSubscript subscripteep subscript_exprp
+
+exprToPred path (SlicedExpr expr slices _) = do
+    exprp <- exprToPred (path.sliceeL) expr
+    slicesp <- slicesToPred (path.slicesL) slices
+    return $ pSlicedExpr exprp slicesp
+
+exprToPred path (CondExpr t c f _) = do
+    tp <- exprToPred (path.ce_true_branchL) t
+    cp <- exprToPred (path.ce_conditionL) c
+    fp <- exprToPred (path.ce_false_branchL) f
+    return $ pCondExpr tp cp fp
 
 exprToPred path (Paren e _) = pParen <$> exprToPred (path.paren_exprL) e
 
@@ -164,7 +179,31 @@ compIterToPred path (Just (IterFor for _)) = pJustIterFor <$> compForToPred (pat
 compIterToPred path (Just (IterIf if_ _)) = pJustIterIf <$> compIfToPred (path._Just.comp_iter_ifL) if_
 compIterToPred path Nothing = return isNothing
 
+slicesToPred :: Traversal' QExpr [QSlice] -> [QSlice] -> State RuleState ([QSlice] -> Bool)
+slicesToPred path slices =
+    allApply <$> sequence [sliceToPred (path.ix i) slice | (slice, i) <- zip slices [0..]]
+
+sliceToPred :: Traversal' QExpr QSlice -> QSlice -> State RuleState (QSlice -> Bool)
+sliceToPred path (SliceProper lower upper (Just stride) _) =
+    pSliceProper <$>
+        maybeExprToPred (path.slice_lowerL) lower <*>
+            maybeExprToPred (path.slice_upperL) upper <*>
+                (pJust <$> maybeExprToPred (path.slice_strideL._Just) stride)
+sliceToPred path (SliceProper lower upper Nothing _) =
+    pSliceProper <$>
+        maybeExprToPred (path.slice_lowerL) lower <*>
+            maybeExprToPred (path.slice_upperL) upper <*>
+                return isNothing
+
+maybeExprToPred :: Traversal' QExpr (Maybe QExpr) -> Maybe QExpr -> State RuleState (Maybe QExpr -> Bool)
+maybeExprToPred path (Just e) = pJust <$> exprToPred (path._Just) e
+maybeExprToPred path Nothing = return isNothing
+
 --------------------------------------------------------------------------------
+
+pJust :: (a -> Bool) -> Maybe a -> Bool
+pJust xp (Just x) = xp x
+pJust _ _ = False
 
 pExpr' :: ExprPred
 pExpr' _ = True
@@ -206,6 +245,10 @@ pUnaryOp :: (QOp -> Bool) -> ExprPred -> ExprPred
 pUnaryOp opp argp (UnaryOp op arg _) = opp op && argp arg
 pUnaryOp _ _ _ = False
 
+pLambda :: (QExpr -> Bool) -> ExprPred
+pLambda bodyp (Lambda [] body _) = bodyp body
+pLambda _ _ = False
+
 
 pCall :: ExprPred -> ArgumentsPred -> ExprPred
 pCall funp argsp (Call fun args _) = funp fun && argsp args
@@ -215,6 +258,18 @@ pCall _ _ _ = False
 pSubscript :: ExprPred -> ExprPred -> ExprPred
 pSubscript sp sep (Subscript s se _) = sp s && sep se
 pSubscript _ _ _ = False
+
+pSlicedExpr :: ExprPred -> ([QSlice] -> Bool) -> ExprPred
+pSlicedExpr exprp slicesp (SlicedExpr expr slices _) = exprp expr && slicesp slices
+pSlicedExpr _ _ _ = False
+
+pCondExpr :: ExprPred -> ExprPred -> ExprPred -> ExprPred
+pCondExpr tp cp fp (CondExpr t c f _) = tp t && cp c && fp f
+pCondExpr _ _ _ _ = False
+
+pSliceProper :: (Maybe QExpr -> Bool) -> (Maybe QExpr -> Bool) -> (Maybe (Maybe QExpr) -> Bool) -> QSlice -> Bool
+pSliceProper lowerp upperp stridep (SliceProper lower upper stride _) = lowerp lower && upperp upper && stridep stride
+pSliceProper _ _ _ _ = False
 
 pParen :: ExprPred -> ExprPred
 pParen ep (Paren e _) = ep e

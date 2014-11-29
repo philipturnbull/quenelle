@@ -52,6 +52,9 @@ testMatchExprRule = testList "matchExprRule" [
     , testUnaryOp
     , testSubscript
     , testCall
+    , testLambda
+    , testCondExpr
+    , testSlicedExpr
     ]
 
 testIntegers = testList "Int/LongInt" [
@@ -83,11 +86,31 @@ testSubscript = testList "Subscript" [
       t "E1[E1]" "0[0]" [[("E1", zero)]]
     , t "E1[E2]" "0[1]" [[("E1", zero), ("E2", one)]]
     , t "E1[E1]" "0[1]" []
+    -- x[y, z] seems ambiguous. It is parsed as "Subscript[Tuple]" but it
+    -- is possible to create a "SlicedExpr[SliceExpr, SliceExpr]" which serialises
+    -- to the same form.
+    , t "E1[E2, E3]" "0[1, 2]" [[("E1", zero), ("E2", one), ("E3", two)]]
     ]
 
 testCall = testList "Call" [
       t "E1()" "f()" [[("E1", var "f")]]
     , t "E1()" "0()" [[("E1", zero)]]
+    ]
+
+testLambda = testList "Lambda" [
+      t "lambda: E1" "lambda: 0" [[("E1", zero)]]
+    ]
+
+testCondExpr = testList "CondExpr" [
+      t "E1 if E2 else E3" "0 if 1 else 2" [[("E1", zero), ("E2", one), ("E3", two)]]
+    ]
+
+testSlicedExpr = testList "SlicedExpr" [
+      t "E1[:]" "0[:]" [[("E1", zero)]]
+    , t "E1[E2:]" "0[1:]" [[("E1", zero), ("E2", one)]]
+    , t "E1[E2:E3]" "0[1:2]" [[("E1", zero), ("E2", one), ("E3", two)]]
+    , t "E1[E2:E3:]" "0[1:2:]" [[("E1", zero), ("E2", one), ("E3", two)]]
+    , t "E1[E2:E3:E4]" "0[1:2:3]" [[("E1", zero), ("E2", one), ("E3", two), ("E4", three)]]
     ]
 
 quickCheckMatchExprRule = qc count_matches 10000 "quickCheckMatchExprRule"
