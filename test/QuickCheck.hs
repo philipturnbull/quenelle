@@ -148,6 +148,9 @@ instance Arbitrary QExpr where
         , (1, arbitrary >>= \n -> return $ Float n (show n) ())
         , (1, arbitrary >>= \n -> return $ Imaginary n (show n ++ "j") ())
         , (1, Bool <$> arbitrary <*> annot)
+        , (1, ByteStrings <$> arbStrings "b" <*> annot)
+        , (1, Strings <$> arbStrings "" <*> annot)
+        , (1, UnicodeStrings <$> arbStrings "u" <*> annot)
         , (2, Call <$> arbitrary <*> emptyl <*> annot)
         , (1, Call <$> arbitrary <*> arbitrary <*> annot)
         , (1, Subscript <$> arbitrary <*> arbitrary <*> annot)
@@ -176,6 +179,11 @@ instance Arbitrary QExpr where
         , (1, Paren <$> arbitrary <*> annot)
         , (1, StringConversion <$> arbitrary <*> annot)
         ]
+        where arbStrings prefix = elements [
+                        [prefix ++ "'a'"],
+                        [prefix ++ "'a'", prefix ++ "\"bb\""],
+                        [prefix ++ "\"a\"", prefix ++ "'bb'", prefix ++ "\"ccc\""]
+                        ]
 
     shrink (Call f args ()) = f : [Call f' args' () | (f', args') <- shrink (f, args)]
     shrink (Subscript s e ()) = [s, e] ++ [Subscript s' e' () | (s', e') <- shrink (s, e)]

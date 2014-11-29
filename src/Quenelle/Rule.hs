@@ -103,6 +103,9 @@ exprToPred path (LongInt x _ _) = return $ pLongInt x
 exprToPred path (Float x _ _) = return $ pFloat x
 exprToPred path (Imaginary x _ _) = return $ pImaginary x
 exprToPred path (Bool x _) = return $ pBool x
+exprToPred path (ByteStrings ss _) = return $ pByteStrings ss
+exprToPred path (Strings ss _) = return $ pStrings ss
+exprToPred path (UnicodeStrings ss _) = return $ pUnicodeStrings ss
 
 exprToPred path (BinaryOp op l r _) = do
     lp <- exprToPred (path.left_op_argL) l
@@ -243,6 +246,18 @@ pImaginary _ _ = False
 pBool :: Bool -> ExprPred
 pBool x (Bool y _) = x == y
 pBool _ _  = False
+
+pByteStrings :: [String] -> ExprPred
+pByteStrings ss' (ByteStrings ss _) = ss == ss'
+pByteStrings _ _ = False
+
+pStrings :: [String] -> ExprPred
+pStrings ss' (Strings ss _) = ss == ss'
+pStrings _ _ = False
+
+pUnicodeStrings :: [String] -> ExprPred
+pUnicodeStrings ss' (UnicodeStrings ss _) = ss == ss'
+pUnicodeStrings _ _ = False
 
 
 pOp :: QOp -> QOp -> Bool

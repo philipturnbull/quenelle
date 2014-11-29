@@ -45,6 +45,9 @@ childExprs path e@LongInt{} = [(path, e)]
 childExprs path e@Float{} = [(path, e)]
 childExprs path e@Imaginary{} = [(path, e)]
 childExprs path e@Bool{} = [(path, e)]
+childExprs path e@ByteStrings{} = [(path, e)]
+childExprs path e@Strings{} = [(path, e)]
+childExprs path e@UnicodeStrings{} = [(path, e)]
 childExprs path e@(BinaryOp _ l r _) =
     (path, e) : childExprs (path.left_op_argL) l ++ childExprs (path.right_op_argL) r
 childExprs path e@(UnaryOp _ ue _) = (path, e) : childExprs (path.op_argL) ue

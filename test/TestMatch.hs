@@ -47,6 +47,7 @@ testList name tests = TestLabel name $ TestList tests
 testMatchExprRule :: Test
 testMatchExprRule = testList "matchExprRule" [
       testNumbers
+    , testStrings
     , testParen
     , testBinaryOp
     , testUnaryOp
@@ -67,6 +68,20 @@ testNumbers = testList "numbers" [
     , t "E1" "0" [[("E1", zero)]]
     , t "1.0" "1.0" [[]]
     , t "1j" "1j" [[]]
+    ]
+
+testStrings = testList "strings" [
+      t "'abc'" "'abc'" [[]]
+    , t "\"abc\"" "\"abc\"" [[]]
+    , t "'a' 'a'" "'a' 'a'" [[]]
+
+    , t "b'abc'" "b'abc'" [[]]
+    , t "b\"abc\"" "b\"abc\"" [[]]
+    , t "b'a' b'a'" "b'a' b'a'" [[]]
+
+    , t "u'abc'" "u'abc'" [[]]
+    , t "u\"abc\"" "u\"abc\"" [[]]
+    , t "u'a' u'a'" "u'a' u'a'" [[]]
     ]
 
 testParen = testList "Paren" [
