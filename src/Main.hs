@@ -29,8 +29,8 @@ printMatch replacement match = do
     where result = doReplacement replacement match
           with color a = setSGR color >> a >> setSGR []
 
-runRule :: ExprRule -> ExprReplacement -> (ExprLocation, QExpr) -> IO ()
-runRule rule replacement (loc, expr) =
+runRule :: ExprRule -> ExprReplacement -> TopLevelExpr -> IO ()
+runRule rule replacement (TopLevelExpr stmt loc expr) =
     unless (null matches) $ do
         putStrLn $ show loc ++ ":"
         mapM_ (printMatch replacement) matches

@@ -1,4 +1,5 @@
 module Quenelle.File (
+    TopLevelExpr(..),
     ExprLocation(..),
 
     moduleExprsFromFile,
@@ -20,31 +21,33 @@ data ExprLocation = ExprLocation !String !Int
 instance Show ExprLocation where
     show (ExprLocation filename line) = filename ++ ":" ++ show line
 
-moduleExprsFromString :: FilePath -> String -> Either String [(ExprLocation, QExpr)]
+data TopLevelExpr = TopLevelExpr StatementSpan ExprLocation QExpr
+
+moduleExprsFromString :: FilePath -> String -> Either String [TopLevelExpr]
 moduleExprsFromString filename contents =
     case parseModule contents filename of
         Left err -> Left $ show err
         Right (m, _) -> Right $ allModuleExprs m
 
-moduleExprsFromFile :: FilePath -> IO (Either String [(ExprLocation, QExpr)])
+moduleExprsFromFile :: FilePath -> IO (Either String [TopLevelExpr])
 moduleExprsFromFile filename = moduleExprsFromString filename <$> readFile filename
 
-allModuleExprs :: ModuleSpan -> [(ExprLocation, QExpr)]
+allModuleExprs :: ModuleSpan -> [TopLevelExpr]
 allModuleExprs (Module stmts) = concatMap stmtExprs stmts
 
-stmtExprs :: StatementSpan -> [(ExprLocation, QExpr)]
-stmtExprs (While cond body else_ _) = [normalizeAndSpan cond] ++ suiteExprs body ++ suiteExprs else_
-stmtExprs (For tgts gen body else_ _) = map normalizeAndSpan (tgts ++ [gen]) ++ suiteExprs body ++ suiteExprs else_
-stmtExprs (Assign tos expr _) = map normalizeAndSpan (tos ++ [expr])
-stmtExprs (AugmentedAssign lhs _ rhs _) = map normalizeAndSpan [lhs, rhs]
-stmtExprs (Return (Just expr) _) = [normalizeAndSpan expr]
-stmtExprs (Return Nothing _) = []
-stmtExprs (With ctxt body _) = map normalizeAndSpan (concatMap flattenWithContext ctxt) ++ suiteExprs body
-stmtExprs (Delete exprs _) = map normalizeAndSpan exprs
-stmtExprs (StmtExpr e _) = [normalizeAndSpan e]
-stmtExprs (Assert exprs _) = map normalizeAndSpan exprs
-stmtExprs (Print _ exprs _ _) = map normalizeAndSpan exprs
-stmtExprs (Exec expr scope _) = map normalizeAndSpan $ [expr] ++ flattenExecScope scope
+stmtExprs :: StatementSpan -> [TopLevelExpr]
+stmtExprs s@(While cond body else_ _) = [normalizeAndSpan s cond] ++ suiteExprs body ++ suiteExprs else_
+stmtExprs s@(For tgts gen body else_ _) = map (normalizeAndSpan s) (tgts ++ [gen]) ++ suiteExprs body ++ suiteExprs else_
+stmtExprs s@(Assign tos expr _) = map (normalizeAndSpan s) (tos ++ [expr])
+stmtExprs s@(AugmentedAssign lhs _ rhs _) = map (normalizeAndSpan s) [lhs, rhs]
+stmtExprs s@(Return (Just expr) _) = [normalizeAndSpan s expr]
+stmtExprs s@(Return Nothing _) = []
+stmtExprs s@(With ctxt body _) = map (normalizeAndSpan s) (concatMap flattenWithContext ctxt) ++ suiteExprs body
+stmtExprs s@(Delete exprs _) = map (normalizeAndSpan s) exprs
+stmtExprs s@(StmtExpr e _) = [normalizeAndSpan s e]
+stmtExprs s@(Assert exprs _) = map (normalizeAndSpan s) exprs
+stmtExprs s@(Print _ exprs _ _) = map (normalizeAndSpan s) exprs
+stmtExprs s@(Exec expr scope _) = map (normalizeAndSpan s) $ [expr] ++ flattenExecScope scope
 stmtExprs _ = []
 
 flattenExecScope :: Maybe (ExprSpan, Maybe ExprSpan) -> [ExprSpan]
@@ -56,10 +59,11 @@ flattenWithContext :: (ExprSpan, Maybe ExprSpan) -> [ExprSpan]
 flattenWithContext (e1, Just e2) = [e1, e2]
 flattenWithContext (e1, Nothing) = [e1]
 
-suiteExprs :: SuiteSpan -> [(ExprLocation, QExpr)]
+suiteExprs :: SuiteSpan -> [TopLevelExpr]
 suiteExprs = concatMap stmtExprs
 
-normalizeAndSpan e = (exprLocation (expr_annot e), normalizeExpr e)
+normalizeAndSpan :: StatementSpan -> ExprSpan -> TopLevelExpr
+normalizeAndSpan s e = TopLevelExpr s (exprLocation (expr_annot e)) (normalizeExpr e)
 
 exprLocation (SpanCoLinear filename row _ _) = ExprLocation filename row
 exprLocation (SpanMultiLine filename row _ _ _) = ExprLocation filename row
