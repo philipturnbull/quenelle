@@ -5,6 +5,7 @@ module TestMatch (
 import Data.List
 import Language.Python.Common.AST
 import Language.Python.Common.Pretty (prettyText)
+import Language.Python.Common.PrettyAST
 import Language.Python.Version2.Parser
 import Test.HUnit.Base
 

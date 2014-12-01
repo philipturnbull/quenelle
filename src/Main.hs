@@ -7,6 +7,7 @@ import Options.Applicative hiding (Success)
 import System.Console.ANSI
 
 import Language.Python.Common.Pretty
+import Language.Python.Common.PrettyAST
 import Language.Python.Version2.Parser
 
 import Quenelle.File

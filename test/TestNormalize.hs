@@ -3,6 +3,7 @@ module TestNormalize (
 ) where
 
 import Language.Python.Common.Pretty
+import Language.Python.Common.PrettyAST
 import Test.HUnit.Base
 
 import Quenelle.Normalize
