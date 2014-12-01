@@ -17,7 +17,7 @@ type QParameter = Parameter ()
 type QParamTuple = ParamTuple ()
 type QSlice = Slice ()
 
-type QPath = Traversal QExpr QExpr QExpr QExpr
+type QExprPath = Traversal QExpr QExpr QExpr QExpr
 
 -- Ident
 ---- Ident

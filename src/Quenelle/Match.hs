@@ -20,14 +20,14 @@ import Quenelle.Var
 data ExprMatch = ExprMatch {
     exprMatchRule :: ExprRule,
     exprMatchExpr :: QExpr,
-    exprMatchPath :: QPath,
+    exprMatchPath :: QExprPath,
     exprMatchBindings :: [(String, QExpr)]
     }
 
 matchExprRule :: ExprRule -> QExpr -> [ExprMatch]
 matchExprRule rule expr = mapMaybe (matchChildExpr rule expr) (childExprs id expr)
 
-matchChildExpr :: ExprRule -> QExpr -> (QPath, QExpr) -> Maybe ExprMatch
+matchChildExpr :: ExprRule -> QExpr -> (QExprPath, QExpr) -> Maybe ExprMatch
 matchChildExpr rule root (path, expr) = do
     raw_vars <- runExprRule rule expr
     vars <- validateVars raw_vars
@@ -38,7 +38,7 @@ matchChildExpr rule root (path, expr) = do
         exprMatchBindings = vars
     }
 
-childExprs :: QPath -> QExpr -> [(QPath, QExpr)]
+childExprs :: QExprPath -> QExpr -> [(QExprPath, QExpr)]
 childExprs path e@Var{} = [(path, e)]
 childExprs path e@Int{} = [(path, e)]
 childExprs path e@LongInt{} = [(path, e)]
@@ -95,45 +95,45 @@ childExprs path e@(Dictionary kvs _) =
 childExprs path e@(Set es _) =
     (path, e) : concatChildExprs (path.set_exprsL) es
 
-argumentsChildExprs :: QPath -> [QArgument] -> [(QPath, QExpr)]
+argumentsChildExprs :: QExprPath -> [QArgument] -> [(QExprPath, QExpr)]
 argumentsChildExprs path args = concat [argumentChildExprs (path.call_argsL.ix i) arg | (arg, i) <- zip args [0..]]
 
-argumentChildExprs :: Traversal' QExpr QArgument -> QArgument -> [(QPath, QExpr)]
+argumentChildExprs :: Traversal' QExpr QArgument -> QArgument -> [(QExprPath, QExpr)]
 argumentChildExprs path (ArgExpr e _) = childExprs (path.arg_exprL) e
 argumentChildExprs path (ArgVarArgsPos e _) = childExprs (path.arg_exprL) e
 argumentChildExprs path (ArgVarArgsKeyword e _) = childExprs (path.arg_exprL) e
 argumentChildExprs path (ArgKeyword _ e _) = childExprs (path.arg_exprL) e
 
-compExprChildExprs :: Traversal' QExpr (QComprehension QExpr) -> QComprehension QExpr -> [(QPath, QExpr)]
+compExprChildExprs :: Traversal' QExpr (QComprehension QExpr) -> QComprehension QExpr -> [(QExprPath, QExpr)]
 compExprChildExprs path (Comprehension e for _) =
     childExprs (path.comprehension_exprL) e ++ compForChildExprs (path.comprehension_forL) for
 
-compForChildExprs :: Traversal' QExpr QCompFor -> QCompFor -> [(QPath, QExpr)]
+compForChildExprs :: Traversal' QExpr QCompFor -> QCompFor -> [(QExprPath, QExpr)]
 compForChildExprs path (CompFor fores ine iter _) =
     concatChildExprs (path.comp_for_exprsL) fores ++ childExprs (path.comp_in_exprL) ine ++ compIterChildExprs (path.comp_for_iterL) iter
 
-compIfChildExprs :: Traversal' QExpr QCompIf -> QCompIf -> [(QPath, QExpr)]
+compIfChildExprs :: Traversal' QExpr QCompIf -> QCompIf -> [(QExprPath, QExpr)]
 compIfChildExprs path (CompIf if_ iter _) =
     childExprs (path.comp_ifL) if_ ++ compIterChildExprs (path.comp_if_iterL) iter
 
-compIterChildExprs :: Traversal' QExpr (Maybe QCompIter) -> Maybe QCompIter -> [(QPath, QExpr)]
+compIterChildExprs :: Traversal' QExpr (Maybe QCompIter) -> Maybe QCompIter -> [(QExprPath, QExpr)]
 compIterChildExprs path (Just (IterFor for _)) = compForChildExprs (path._Just.comp_iter_forL) for
 compIterChildExprs path (Just (IterIf if_ _)) = compIfChildExprs (path._Just.comp_iter_ifL) if_
 compIterChildExprs path Nothing = []
 
-concatChildExprs :: Traversal' QExpr [QExpr] -> [QExpr] -> [(QPath, QExpr)]
+concatChildExprs :: Traversal' QExpr [QExpr] -> [QExpr] -> [(QExprPath, QExpr)]
 concatChildExprs path es = concat [childExprs (path.ix i) e | (e, i) <- zip es [0..]]
 
-concatDictChildExprs :: Traversal' QExpr [(QExpr, QExpr)] -> [(QExpr, QExpr)] -> [(QPath, QExpr)]
+concatDictChildExprs :: Traversal' QExpr [(QExpr, QExpr)] -> [(QExpr, QExpr)] -> [(QExprPath, QExpr)]
 concatDictChildExprs path kvs =
     concat [childExprs (path.ix i._1) k | ((k, _), i) <- ikvs] ++
         concat [childExprs (path.ix i._2) v | ((_, v), i) <- ikvs]
     where ikvs = zip kvs [0..]
 
-concatSliceChildExprs :: Traversal' QExpr [QSlice] -> [QSlice] -> [(QPath, QExpr)]
+concatSliceChildExprs :: Traversal' QExpr [QSlice] -> [QSlice] -> [(QExprPath, QExpr)]
 concatSliceChildExprs path ss = concat [sliceChildExprs (path.ix i) s | (s, i) <- zip ss [0..]]
 
-sliceChildExprs :: Traversal' QExpr QSlice -> QSlice -> [(QPath, QExpr)]
+sliceChildExprs :: Traversal' QExpr QSlice -> QSlice -> [(QExprPath, QExpr)]
 sliceChildExprs path (SliceProper l u s _) =
     maybeChildExprs (path.slice_lowerL) l ++
         maybeChildExprs (path.slice_upperL) u ++
@@ -141,14 +141,14 @@ sliceChildExprs path (SliceProper l u s _) =
 sliceChildExprs path (SliceExpr e _) = childExprs (path.slice_exprL) e
 sliceChildExprs path (SliceEllipsis _) = []
 
-maybeChildExprs :: Traversal' QExpr (Maybe QExpr) -> Maybe QExpr -> [(QPath, QExpr)]
+maybeChildExprs :: Traversal' QExpr (Maybe QExpr) -> Maybe QExpr -> [(QExprPath, QExpr)]
 maybeChildExprs path (Just e) = childExprs (path._Just) e
 maybeChildExprs path Nothing = []
 
-paramsChildExprs :: Traversal' QExpr [QParameter] -> [QParameter] -> [(QPath, QExpr)]
+paramsChildExprs :: Traversal' QExpr [QParameter] -> [QParameter] -> [(QExprPath, QExpr)]
 paramsChildExprs path ps = concat [paramChildExprs (path.ix i) p | (p, i) <- zip ps [0..]]
 
-paramChildExprs :: Traversal' QExpr QParameter -> QParameter -> [(QPath, QExpr)]
+paramChildExprs :: Traversal' QExpr QParameter -> QParameter -> [(QExprPath, QExpr)]
 paramChildExprs path (Param _ annot def _) =
     maybeChildExprs (path.param_py_annotationL) annot ++
         maybeChildExprs (path.param_defaultL) def

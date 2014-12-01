@@ -18,7 +18,7 @@ import Quenelle.Rule
 
 data ExprReplacement = ExprReplacement {
     exprReplacementExpr :: QExpr,
-    exprReplacementUnboundVars :: [(String, QPath)]
+    exprReplacementUnboundVars :: [(String, QExprPath)]
     }
 
 parseExprReplacement :: String -> Either ParseError ExprReplacement
@@ -42,7 +42,7 @@ bindAllVars replacement match = foldr (bindVar boundVars) replacementExpr unboun
           boundVars = exprMatchBindings match
           unboundVars = exprReplacementUnboundVars replacement
 
-bindVar :: [(String, QExpr)] -> (String, QPath) -> QExpr -> QExpr
+bindVar :: [(String, QExpr)] -> (String, QExprPath) -> QExpr -> QExpr
 bindVar vars (name, path) expr =
     case lookup name vars of
         Just val -> set path val expr

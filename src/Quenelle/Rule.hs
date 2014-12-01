@@ -32,7 +32,7 @@ data ExprRule = ExprRule {
     exprRuleName :: String,
     exprRuleExpr :: QExpr,
     exprRulePred :: ExprPred,
-    exprRuleBoundVars :: [(String, QPath)]
+    exprRuleBoundVars :: [(String, QExprPath)]
     }
 
 
@@ -41,10 +41,10 @@ runExprRule rule expr =
     if exprRulePred rule expr then
         readExprVars expr (exprRuleBoundVars rule) else Nothing
 
-readExprVars :: QExpr -> [(String, QPath)] -> Maybe [(String, QExpr)]
+readExprVars :: QExpr -> [(String, QExprPath)] -> Maybe [(String, QExpr)]
 readExprVars expr = mapM (readExprPath expr)
 
-readExprPath :: QExpr -> (String, QPath) -> Maybe (String, QExpr)
+readExprPath :: QExpr -> (String, QExprPath) -> Maybe (String, QExpr)
 -- If exprRulePred succeeds, then every path should be valid
 readExprPath expr (name, path) = assert (has path expr) $ expr ^? path >>= \e -> return (name, e)
 
@@ -74,12 +74,12 @@ runExprToPred e = (e', pred, state)
 --------------------------------------------------------------------------------
 
 data RuleState = RuleState {
-    ruleBoundVars :: [(String, QPath)]
+    ruleBoundVars :: [(String, QExprPath)]
     }
 
 emptyRuleState = RuleState { ruleBoundVars = [] }
 
-bindVar :: String -> QPath -> State RuleState ()
+bindVar :: String -> QExprPath -> State RuleState ()
 bindVar name path = modify $ \s -> s { ruleBoundVars = ruleBoundVars s ++ [(name, path)] }
 
 --------------------------------------------------------------------------------
@@ -88,7 +88,7 @@ exprsToPred :: Traversal' QExpr [QExpr] -> [QExpr] -> State RuleState [ExprPred]
 exprsToPred path es = sequence [exprToPred (path.ix i) e | (e, i) <- zip es [0..]]
 
 
-exprToPred :: QPath -> QExpr -> State RuleState ExprPred
+exprToPred :: QExprPath -> QExpr -> State RuleState ExprPred
 exprToPred path (Var x _) =
     case classifyVar x of
         (Expression, y) -> return pExpr'
