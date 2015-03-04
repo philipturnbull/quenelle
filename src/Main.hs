@@ -6,6 +6,7 @@ import Data.Monoid
 import Options.Applicative hiding (Success)
 import System.Console.ANSI
 
+import Language.Python.Common.AST
 import Language.Python.Common.Pretty
 import Language.Python.Common.PrettyAST
 import Language.Python.Version2.Parser
@@ -21,20 +22,30 @@ import Quenelle.Rule
 oldSGR = [SetColor Foreground Dull Red]
 newSGR = [SetColor Foreground Dull Green]
 
-printMatch :: ExprReplacement -> ExprMatch -> IO ()
-printMatch replacement match = do
+printMatchHeader :: StatementSpan -> ExprLocation -> IO ()
+printMatchHeader stmt loc = do
+    putStrLn $ locstr ++ replicate (headerwidth - locwidth) '='
+    putStrLn $ prettyText stmt
+    putStrLn $ replicate headerwidth '='
+    where locstr = "====[ " ++ show loc ++ " ]"
+          locwidth = length locstr
+          headerwidth = 60
+
+printMatch :: StatementSpan -> ExprReplacement -> ExprMatch -> IO ()
+printMatch stmt replacement match = do
     with oldSGR $ putStr "  - "
     putStrLn $ prettyText (exprMatchExpr match)
     with newSGR $ putStr "  + "
     putStrLn $ prettyText result
+    putStrLn "\n"
     where result = doReplacement replacement match
           with color a = setSGR color >> a >> setSGR []
 
 runRule :: ExprRule -> ExprReplacement -> TopLevelExpr -> IO ()
 runRule rule replacement (TopLevelExpr stmt loc expr) =
     unless (null matches) $ do
-        putStrLn $ show loc ++ ":"
-        mapM_ (printMatch replacement) matches
+        printMatchHeader stmt loc
+        mapM_ (printMatch stmt replacement) matches
     where matches = matchExprRule rule expr
 
 quenelleFile :: ExprRule -> ExprReplacement -> FilePath -> IO ()
