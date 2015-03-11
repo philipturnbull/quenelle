@@ -143,8 +143,10 @@ testCall = testList "Call" [
 
 testLambda = testList "Lambda" [
       t "lambda: E1" "lambda: 0" [[("E1", zero)]]
+    , t "lambda: lambda: E1" "lambda: lambda: 0" [[("E1", zero)]]
 
     , t "lambda: V1" "lambda: x" [[("V1", var "x")]]
+    , t "lambda: lambda: V1" "lambda: lambda: x" [[("V1", var "x")]]
     ]
 
 testCondExpr = testList "CondExpr" [
