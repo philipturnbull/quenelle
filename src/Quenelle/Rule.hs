@@ -96,6 +96,9 @@ exprToPred path (Var x _) =
             bindVar y path
             return pExpr'
         (Variable, y) -> return pVar'
+        (BoundVariable, y) -> do
+            bindVar y path
+            return pVar'
         (Normal, _) -> return $ pVar (pIdent x)
 
 exprToPred path (Int x _ _) = return $ pInt x

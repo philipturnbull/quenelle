@@ -49,6 +49,7 @@ testMatchExprRule :: Test
 testMatchExprRule = testList "matchExprRule" [
       testNumbers
     , testStrings
+    , testVariableBinding
     , testParen
     , testBinaryOp
     , testUnaryOp
@@ -85,20 +86,39 @@ testStrings = testList "strings" [
     , t "u'a' u'a'" "u'a' u'a'" [[]]
     ]
 
+testVariableBinding = testList "variables" [
+      t "V1" "x" [[("V1", var "x")]]
+    , t "V1" "foo" [[("V1", var "foo")]]
+    , t "x.V2" "x.y" [[("V2", var "y")]]
+    , t "V1.y" "x.y" [[("V1", var "x")]]
+    , t "V1.V2" "x.y" [[("V1", var "x"), ("V2", var "y")]]
+    , t "x.V2.V3" "x.y.z" [[("V2", var "y"), ("V3", var "z")]]
+    , t "V1.y.V3" "x.y.z" [[("V1", var "x"), ("V3", var "z")]]
+    , t "V1.V2.z" "x.y.z" [[("V1", var "x"), ("V2", var "y")]]
+    , t "V1.V2.V3" "x.y.z" [[("V1", var "x"), ("V2", var "y"), ("V3", var "z")]]
+    ]
+
 testParen = testList "Paren" [
       t "(E1)" "(0)" [[("E1", zero)]]
     , t "(E1)" "0 + 1" []
     , t "E1" "((0))" [[("E1", parens $ parens zero)], [("E1", parens zero)], [("E1", zero)]]
+
+    , t "V1" "((x))" [[("V1", var "x")]]
     ]
 
 testBinaryOp = testList "BinaryOp" [
       t "E1 + E2" "0 + 1" [[("E1", zero), ("E2", one)]]
     , t "E1 + E1" "0 + 0" [[("E1", zero)]]
+
+    , t "V1 + V1" "x + x" [[("V1", var "x")]]
+    , t "V1 + V1" "x + y" []
     ]
 
 testUnaryOp = testList "UnaryOp" [
       t "-E1" "-1" [[("E1", one)]]
     , t "-E1" "(-0) + (-1)" [[("E1", zero)], [("E1", one)]]
+
+    , t "-V1" "-x" [[("V1", var "x")]]
     ]
 
 testSubscript = testList "Subscript" [
@@ -109,19 +129,28 @@ testSubscript = testList "Subscript" [
     -- is possible to create a "SlicedExpr[SliceExpr, SliceExpr]" which serialises
     -- to the same form.
     , t "E1[E2, E3]" "0[1, 2]" [[("E1", zero), ("E2", one), ("E3", two)]]
+
+    , t "V1[V2]" "x[y]" [[("V1", var "x"), ("V2", var "y")]]
+    , t "V1[V1]" "x[y]" []
     ]
 
 testCall = testList "Call" [
       t "E1()" "f()" [[("E1", var "f")]]
     , t "E1()" "0()" [[("E1", zero)]]
+
+    , t "V1()" "f()" [[("V1", var "f")]]
     ]
 
 testLambda = testList "Lambda" [
       t "lambda: E1" "lambda: 0" [[("E1", zero)]]
+
+    , t "lambda: V1" "lambda: x" [[("V1", var "x")]]
     ]
 
 testCondExpr = testList "CondExpr" [
       t "E1 if E2 else E3" "0 if 1 else 2" [[("E1", zero), ("E2", one), ("E3", two)]]
+
+    , t "V1 if V2 else V3" "x if y else z" [[("V1", var "x"), ("V2", var "y"), ("V3", var "z")]]
     ]
 
 testSlicedExpr = testList "SlicedExpr" [
@@ -130,10 +159,14 @@ testSlicedExpr = testList "SlicedExpr" [
     , t "E1[E2:E3]" "0[1:2]" [[("E1", zero), ("E2", one), ("E3", two)]]
     , t "E1[E2:E3:]" "0[1:2:]" [[("E1", zero), ("E2", one), ("E3", two)]]
     , t "E1[E2:E3:E4]" "0[1:2:3]" [[("E1", zero), ("E2", one), ("E3", two), ("E4", three)]]
+
+    , t "V1[V2:V3:V4]" "w[x:y:z]" [[("V1", var "w"), ("V2", var "x"), ("V3", var "y"), ("V4", var "z")]]
     ]
 
 testStringConversion = testList "StringConversion" [
       t "`E1`" "`0`" [[("E1", zero)]]
+
+    , t "`V1`" "`x`" [[("V1", var "x")]]
     ]
 
 quickCheckMatchExprRule = qc count_matches 10000 "quickCheckMatchExprRule"

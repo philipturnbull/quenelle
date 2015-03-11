@@ -20,6 +20,8 @@ testClassifyVar = TestLabel "classifyVar" $ TestList [
     , "E1" ~> (BoundExpression, "E1")
     , "E32" ~> (BoundExpression, "E32")
     , "V" ~> (Variable, "V")
+    , "V1" ~> (BoundVariable, "V1")
+    , "V99" ~> (BoundVariable, "V99")
     , "x" ~> (Normal, "x")
     , "foo" ~> (Normal, "foo")
     ]

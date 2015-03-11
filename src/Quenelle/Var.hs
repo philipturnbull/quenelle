@@ -12,7 +12,7 @@ import Language.Python.Common.AST
 
 import Quenelle.Lens
 
-data VarType = Expression | BoundExpression | Variable | Normal
+data VarType = Expression | BoundExpression | Variable | BoundVariable | Normal
     deriving(Eq, Show)
 
 classifyVar :: QIdent -> (VarType, String)
@@ -20,6 +20,7 @@ classifyVar x = f (ident_string x)
     where f y@"E" = (Expression, y)
           f y@('E':num) | all isDigit num = (BoundExpression, y)
           f y@"V" = (Variable, y)
+          f y@('V':num) | all isDigit num = (BoundVariable, y)
           f y = (Normal, y)
 
 validateVars :: (Eq a) => [(String, a)] -> Maybe [(String, a)]
