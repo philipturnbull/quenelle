@@ -1,0 +1,4 @@
+replace:
+f(V1 + V1 + V1)
+with:
+f(3 * V1)

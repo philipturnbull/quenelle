@@ -1,0 +1,4 @@
+replace:
+E1(*(E2, E3))
+with:
+E1(E2, E3)

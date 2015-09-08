@@ -1,0 +1,4 @@
+replace:
+[E1 for E1 in E2 if E3(E1)]
+with:
+filter(E3, E2)

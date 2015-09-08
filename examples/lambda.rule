@@ -1,0 +1,4 @@
+replace:
+map(lambda x: E1(x), E2)
+with:
+map(E1, E2)

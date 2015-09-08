@@ -1,0 +1,4 @@
+replace:
+[E1(E2) for E2 in E3]
+with:
+map(E1, E3)
