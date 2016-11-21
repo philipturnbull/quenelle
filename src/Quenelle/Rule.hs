@@ -2,11 +2,11 @@
 module Quenelle.Rule (
     ExprPred,
     ExprRule(..),
+    RuleBinding(..),
     parseExprRule,
     runExprRule
 ) where
 
-import Control.Applicative
 import Control.Exception.Base
 import Control.Lens
 import Control.Monad.State.Strict
@@ -23,31 +23,37 @@ import Quenelle.Var
 type ArgumentPred = QArgument -> Bool
 type ArgumentsPred = [QArgument] -> Bool
 type ExprPred = QExpr -> Bool
-type ComprehensionPred a = QComprehension a -> Bool
+type ComprehensionPred = QComprehension -> Bool
+type ComprehensionExprPred = QComprehensionExpr -> Bool
 type CompIfPred = QCompIf -> Bool
 type CompForPred = QCompFor -> Bool
+type IdentPred = QIdent -> Bool
 type ParameterPred = QParameter -> Bool
+type ParametersPred = [QParameter] -> Bool
+
+data RuleBinding =
+      RuleVariableBinding VariableID QIdentPath
+    | RuleExpressionBinding ExpressionID QExprPath
 
 data ExprRule = ExprRule {
     exprRuleName :: String,
     exprRuleExpr :: QExpr,
     exprRulePred :: ExprPred,
-    exprRuleBoundVars :: [(String, QExprPath)]
+    exprRuleBindings :: [RuleBinding]
     }
 
 
-runExprRule :: ExprRule -> QExpr -> Maybe [(String, QExpr)]
+runExprRule :: ExprRule -> QExpr -> Maybe [Binding]
 runExprRule rule expr =
     if exprRulePred rule expr then
-        readExprVars expr (exprRuleBoundVars rule) else Nothing
+        readExprExprs expr (exprRuleBindings rule) else Nothing
 
-readExprVars :: QExpr -> [(String, QExprPath)] -> Maybe [(String, QExpr)]
-readExprVars expr = mapM (readExprPath expr)
-
-readExprPath :: QExpr -> (String, QExprPath) -> Maybe (String, QExpr)
--- If exprRulePred succeeds, then every path should be valid
-readExprPath expr (name, path) = assert (has path expr) $ expr ^? path >>= \e -> return (name, e)
-
+readExprExprs :: QExpr -> [RuleBinding] -> Maybe [Binding]
+readExprExprs expr = mapM (readPath expr)
+    -- If exprRulePred succeeds, then every path should be valid
+    where readPath :: QExpr -> RuleBinding -> Maybe Binding
+          readPath e (RuleVariableBinding name path) = assert (has path e) $ VariableBinding name <$> e ^? path
+          readPath e (RuleExpressionBinding name path) = assert (has path e) $ ExpressionBinding name <$> e ^? path
 
 parseExprRule :: String -> Either ParseError ExprRule
 parseExprRule str =
@@ -57,7 +63,7 @@ parseExprRule str =
             exprRuleName = "rule",
             exprRuleExpr = expr,
             exprRulePred = pred,
-            exprRuleBoundVars = ruleBoundVars state
+            exprRuleBindings = ruleBindings state
             }
 
 
@@ -74,13 +80,20 @@ runExprToPred e = (e', pred, state)
 --------------------------------------------------------------------------------
 
 data RuleState = RuleState {
-    ruleBoundVars :: [(String, QExprPath)]
+    ruleBindings :: [RuleBinding]
     }
 
-emptyRuleState = RuleState { ruleBoundVars = [] }
+emptyRuleState = RuleState { ruleBindings = [] }
 
-bindVar :: String -> QExprPath -> State RuleState ()
-bindVar name path = modify $ \s -> s { ruleBoundVars = ruleBoundVars s ++ [(name, path)] }
+bindVariable :: VariableID -> QIdentPath -> State RuleState ()
+bindVariable name path = modify $ \s -> s {
+    ruleBindings = ruleBindings s ++ [RuleVariableBinding name path]
+    }
+
+bindExpression :: ExpressionID -> QExprPath -> State RuleState ()
+bindExpression name path = modify $ \s -> s {
+    ruleBindings = ruleBindings s ++ [RuleExpressionBinding name path]
+    }
 
 --------------------------------------------------------------------------------
 
@@ -91,15 +104,15 @@ exprsToPred path es = sequence [exprToPred (path.ix i) e | (e, i) <- zip es [0..
 exprToPred :: QExprPath -> QExpr -> State RuleState ExprPred
 exprToPred path (Var x _) =
     case classifyVar x of
-        (Expression, y) -> return pExpr'
-        (BoundExpression, y) -> do
-            bindVar y path
+        Expression -> return pExpr'
+        (BoundExpression name) -> do
+            bindExpression name path
             return pExpr'
-        (Variable, y) -> return pVar'
-        (BoundVariable, y) -> do
-            bindVar y path
+        Variable -> return pVar'
+        (BoundVariable name) -> do
+            bindVariable name (path.var_identL)
             return pVar'
-        (Normal, _) -> return $ pVar (pIdent x)
+        Normal -> return $ pVar (pIdent x)
 
 exprToPred path (Int x _ _) = return $ pInt x
 exprToPred path (LongInt x _ _) = return $ pLongInt x
@@ -119,9 +132,26 @@ exprToPred path (UnaryOp op arg _) = do
     argp <- exprToPred (path.op_argL) arg
     return $ pUnaryOp (pOp op) argp
 
-exprToPred path (Lambda [] body _) = do
+exprToPred path (Dot e ident _) = do
+    ep <- exprToPred (path.dot_exprL) e
+    case classifyVar ident of
+        Expression -> return pExpr'
+        (BoundExpression name) -> do
+            -- TODO: this doesn't seem right and might explain why
+            -- the this test fails in TestRepace.hs:
+            -- "x.y" "V1.E1" "E1.V1" "y.x"
+            bindExpression name path
+            return pExpr'
+        Variable -> return $ pDot ep (const True)
+        (BoundVariable name) -> do
+            bindVariable name (path.dot_attributeL)
+            return $ pDot ep (const True)
+        Normal -> return $ pDot ep (pIdent ident)
+
+exprToPred path (Lambda params body _) = do
+    paramsp <- parametersToPred (path.lambda_argsL) params
     bodyp <- exprToPred (path.lambda_bodyL) body
-    return $ pLambda bodyp
+    return $ pLambda paramsp bodyp
 
 exprToPred path (Call fun args _) = do
     funp <- exprToPred (path.call_funL) fun
@@ -165,9 +195,30 @@ argumentToPred path (ArgVarArgsPos expr _) = pArgVarArgsPosExpr <$> exprToPred (
 
 --------------------------------------------------------------------------------
 
-comprehensionToPred :: Traversal' QExpr (QComprehension QExpr) -> QComprehension QExpr -> State RuleState (ComprehensionPred QExpr)
+parametersToPred :: Traversal' QExpr [QParameter] -> [QParameter] -> State RuleState ParametersPred
+parametersToPred path params =
+    allApply <$> sequence [parameterToPred (path.ix i) param | (param, i) <- zip params [0..]]
+
+parameterToPred :: Traversal' QExpr QParameter -> QParameter -> State RuleState ParameterPred
+parameterToPred path (Param x Nothing Nothing _) =
+    case classifyVar x of
+        Variable -> return pParam'
+        (BoundVariable name) -> do
+            bindVariable name (path.param_nameL)
+            return pParam'
+        Normal -> return $ pParam (pIdent x)
+
+--------------------------------------------------------------------------------
+
+comprehensionExprToPred :: Traversal' QExpr QComprehensionExpr -> QComprehensionExpr -> State RuleState ComprehensionExprPred
+comprehensionExprToPred path (ComprehensionExpr expr) = pComprehensionExpr <$> exprToPred (path._ComprehensionExpr) expr
+comprehensionExprToPres path (ComprehensionDict dict) = error "ComprehensionDict is unsupported"
+
+--------------------------------------------------------------------------------
+
+comprehensionToPred :: Traversal' QExpr QComprehension -> QComprehension -> State RuleState ComprehensionPred
 comprehensionToPred path (Comprehension e for _) = do
-    ep <- exprToPred (path.comprehension_exprL) e
+    ep <- comprehensionExprToPred (path.comprehension_exprL) e
     forp <- compForToPred (path.comprehension_forL) for
     return $ pComprehension ep forp
 
@@ -218,13 +269,14 @@ pJust _ _ = False
 pExpr' :: ExprPred
 pExpr' _ = True
 
+pIdent :: QIdent -> IdentPred
 pIdent x (Ident y _) = ident_string x == y
 
 pVar' :: ExprPred
 pVar' Var{} = True
 pVar' _ = False
 
-pVar :: (QIdent -> Bool) -> ExprPred
+pVar :: IdentPred -> ExprPred
 pVar namep (Var name _) = namep name
 pVar _ _ = False
 
@@ -274,9 +326,13 @@ pUnaryOp :: (QOp -> Bool) -> ExprPred -> ExprPred
 pUnaryOp opp argp (UnaryOp op arg _) = opp op && argp arg
 pUnaryOp _ _ _ = False
 
-pLambda :: (QExpr -> Bool) -> ExprPred
-pLambda bodyp (Lambda [] body _) = bodyp body
-pLambda _ _ = False
+pDot :: ExprPred -> (QIdent -> Bool) -> ExprPred
+pDot ep identp (Dot e ident _) = identp ident && ep e
+pDot _ _ _ = False
+
+pLambda :: ([QParameter] -> Bool) -> (QExpr -> Bool) -> ExprPred
+pLambda paramsp bodyp (Lambda params body _) = paramsp params && bodyp body
+pLambda _ _ _ = False
 
 
 pCall :: ExprPred -> ArgumentsPred -> ExprPred
@@ -324,6 +380,9 @@ pListComp _ _ = False
 
 pComprehension ep forp (Comprehension e for _) = ep e && forp for
 
+pComprehensionExpr ep (ComprehensionExpr e) = ep e
+pComprehensionExpr _ _ = False
+
 pCompFor foresp inep iterp (CompFor fores ine iter _) = inep ine && iterp iter && allApply foresp fores
 
 pCompIf ifp iterp (CompIf if_ iter _) = ifp if_ && iterp iter
@@ -339,6 +398,14 @@ pJustIterIf _ _ = False
 pStringConversion :: ExprPred -> ExprPred
 pStringConversion exprp (StringConversion expr _) = exprp expr
 pStringConversion _ _ = False
+
+pParam' :: ParameterPred
+pParam' (Param _ Nothing Nothing _) = True
+pParam' _ = False
+
+pParam :: IdentPred -> QParameter -> Bool
+pParam identp (Param ident _ _ _) = identp ident
+pParam _ _ = False
 
 --------------------------------------------------------------------------------
 

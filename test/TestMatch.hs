@@ -14,6 +14,7 @@ import Quenelle.Match
 import Quenelle.Normalize
 import Quenelle.Replace
 import Quenelle.Rule
+import Quenelle.Var
 
 import QuickCheck
 
@@ -24,15 +25,15 @@ testMatch = TestList [
 
 allMatchBindings matches = map exprMatchBindings matches
 
-assertVars rulestr exprstr expected matches =
-    TestCase $ assertEqual (rulestr ++ " -> " ++ exprstr) (sort expected) (sort $ allMatchBindings matches)
+assertVars dbg rulestr exprstr expectedBindings matches =
+    TestCase $ assertEqual (dbg ++ "=>" ++ rulestr ++ " -> " ++ exprstr) (sort expectedBindings) (sort $ allMatchBindings matches)
 
-testRule rulestr exprstr expected =
+testRule rulestr exprstr expectedBindings =
     case parseExprRule rulestr of
         Left _ -> TestCase $ assertFailure $ "Failed to parse rule: " ++ rulestr
         Right rule -> case parseExpr exprstr "" of
                         Left _ -> TestCase $ assertFailure $ "Failed to parse expr: " ++ exprstr
-                        Right (expr, _) -> assertVars rulestr exprstr expected $ matchExprRule rule (normalizeExpr expr)
+                        Right (expr, _) -> assertVars (show expr) rulestr exprstr expectedBindings $ matchExprRule rule (normalizeExpr expr)
 
 t = testRule
 zero = Int 0 "0" ()
@@ -42,6 +43,12 @@ three = Int 3 "3" ()
 add l r = BinaryOp (Plus ()) l r ()
 parens e = Paren e ()
 var s = Var (Ident s ()) ()
+
+e :: Int -> QExpr -> Binding
+e n expr = ExpressionBinding (ExpressionID n) expr
+
+v :: Int -> String -> Binding
+v n ident = VariableBinding (VariableID n) (Ident ident ())
 
 testList name tests = TestLabel name $ TestList tests
 
@@ -67,7 +74,7 @@ testNumbers = testList "numbers" [
     , t "0" "0x00000000" [[]]
     , t "8" "010" [[]]
     , t "0L" "0L" [[]]
-    , t "E1" "0" [[("E1", zero)]]
+    , t "E1" "0" [[(e 1 zero)]]
     , t "1.0" "1.0" [[]]
     , t "1j" "1j" [[]]
     ]
@@ -87,88 +94,95 @@ testStrings = testList "strings" [
     ]
 
 testVariableBinding = testList "variables" [
-      t "V1" "x" [[("V1", var "x")]]
-    , t "V1" "foo" [[("V1", var "foo")]]
-    , t "x.V2" "x.y" [[("V2", var "y")]]
-    , t "V1.y" "x.y" [[("V1", var "x")]]
-    , t "V1.V2" "x.y" [[("V1", var "x"), ("V2", var "y")]]
-    , t "x.V2.V3" "x.y.z" [[("V2", var "y"), ("V3", var "z")]]
-    , t "V1.y.V3" "x.y.z" [[("V1", var "x"), ("V3", var "z")]]
-    , t "V1.V2.z" "x.y.z" [[("V1", var "x"), ("V2", var "y")]]
-    , t "V1.V2.V3" "x.y.z" [[("V1", var "x"), ("V2", var "y"), ("V3", var "z")]]
+      t "V1" "x" [[(v 1 "x")]]
+    , t "V1" "foo" [[(v 1 "foo")]]
+    , t "x.V2" "x.y" [[(v 2 "y")]]
+    , t "V1.y" "x.y" [[(v 1 "x")]]
+    , t "V1.V2" "x.y" [[(v 1 "x"), (v 2 "y")]]
+    --, t "V1.E1" "x.y" [[(v 1 "x"), (e 1 $ var "y")]]
+    , t "x.V2.V3" "x.y.z" [[(v 2 "y"), (v 3 "z")]]
+    , t "V1.y.V3" "x.y.z" [[(v 1 "x"), (v 3 "z")]]
+    , t "V1.V2.z" "x.y.z" [[(v 1 "x"), (v 2 "y")]]
+    , t "V1.V2.V3" "x.y.z" [[(v 1 "x"), (v 2 "y"), (v 3 "z")]]
     ]
 
 testParen = testList "Paren" [
-      t "(E1)" "(0)" [[("E1", zero)]]
-    , t "(E1)" "0 + 1" []
-    , t "E1" "((0))" [[("E1", parens $ parens zero)], [("E1", parens zero)], [("E1", zero)]]
+      t "(E1)" "(0)" [[(e 1 zero)]]
+    , t "(E1)" "0 + 1"[]
+    , t "E1" "((0))" [[(e 1 $ parens $ parens zero)], [(e 1 $ parens zero)], [(e 1 zero)]]
 
-    , t "V1" "((x))" [[("V1", var "x")]]
+    , t "V1" "((x))" [[(v 1 "x")]]
     ]
 
 testBinaryOp = testList "BinaryOp" [
-      t "E1 + E2" "0 + 1" [[("E1", zero), ("E2", one)]]
-    , t "E1 + E1" "0 + 0" [[("E1", zero)]]
+      t "E1 + E2" "0 + 1" [[(e 1 zero), (e 2 one)]]
+    , t "E1 + E1" "0 + 0" [[(e 1 zero)]]
 
-    , t "V1 + V1" "x + x" [[("V1", var "x")]]
+    , t "V1 + V1" "x + x" [[(v 1 "x")]]
     , t "V1 + V1" "x + y" []
     ]
 
 testUnaryOp = testList "UnaryOp" [
-      t "-E1" "-1" [[("E1", one)]]
-    , t "-E1" "(-0) + (-1)" [[("E1", zero)], [("E1", one)]]
+      t "-E1" "-1" [[(e 1 one)]]
+    , t "-E1" "(-0) + (-1)" [[(e 1 zero)], [((e 1 one))]]
 
-    , t "-V1" "-x" [[("V1", var "x")]]
+    , t "-V1" "-x" [[((v 1 "x"))]]
     ]
 
 testSubscript = testList "Subscript" [
-      t "E1[E1]" "0[0]" [[("E1", zero)]]
-    , t "E1[E2]" "0[1]" [[("E1", zero), ("E2", one)]]
+      t "E1[E1]" "0[0]" [[((e 1 zero))]]
+    , t "E1[E2]" "0[1]" [[((e 1 zero)), ((e 2 one))]]
     , t "E1[E1]" "0[1]" []
     -- x[y, z] seems ambiguous. It is parsed as "Subscript[Tuple]" but it
     -- is possible to create a "SlicedExpr[SliceExpr, SliceExpr]" which serialises
     -- to the same form.
-    , t "E1[E2, E3]" "0[1, 2]" [[("E1", zero), ("E2", one), ("E3", two)]]
+    , t "E1[E2, E3]" "0[1, 2]" [[((e 1 zero)), ((e 2 one)), ((e 3 two))]]
 
-    , t "V1[V2]" "x[y]" [[("V1", var "x"), ("V2", var "y")]]
+    , t "V1[V2]" "x[y]" [[((v 1 "x")), (v 2 "y")]]
     , t "V1[V1]" "x[y]" []
     ]
 
 testCall = testList "Call" [
-      t "E1()" "f()" [[("E1", var "f")]]
-    , t "E1()" "0()" [[("E1", zero)]]
+      t "E1()" "f()" [[(e 1 $ var "f")]]
+    , t "E1()" "0()" [[(e 1 zero)]]
 
-    , t "V1()" "f()" [[("V1", var "f")]]
+    , t "V1()" "f()" [[(v 1 "f")]]
     ]
 
 testLambda = testList "Lambda" [
-      t "lambda: E1" "lambda: 0" [[("E1", zero)]]
-    , t "lambda: lambda: E1" "lambda: lambda: 0" [[("E1", zero)]]
+      t "lambda: E1" "lambda: 0" [[((e 1 zero))]]
+    , t "lambda: lambda: E1" "lambda: lambda: 0" [[((e 1 zero))]]
 
-    , t "lambda: V1" "lambda: x" [[("V1", var "x")]]
-    , t "lambda: lambda: V1" "lambda: lambda: x" [[("V1", var "x")]]
+    , t "lambda: V1" "lambda: x" [[((v 1 "x"))]]
+    , t "lambda: lambda: V1" "lambda: lambda: x" [[((v 1 "x"))]]
+
+    , t "lambda x: V1" "lambda x: y" [[((v 1 "y"))]]
+    , t "lambda x: lambda x: V1" "lambda x: lambda x: y" [[((v 1 "y"))]]
+
+    , t "lambda V1: V1" "lambda x: x" [[((v 1 "x"))]]
+    , t "lambda V1: lambda V1: V1" "lambda x: lambda x: x" [[((v 1 "x"))]]
     ]
 
 testCondExpr = testList "CondExpr" [
-      t "E1 if E2 else E3" "0 if 1 else 2" [[("E1", zero), ("E2", one), ("E3", two)]]
+      t "E1 if E2 else E3" "0 if 1 else 2" [[((e 1 zero)), ((e 2 one)), ((e 3 two))]]
 
-    , t "V1 if V2 else V3" "x if y else z" [[("V1", var "x"), ("V2", var "y"), ("V3", var "z")]]
+    , t "V1 if V2 else V3" "x if y else z" [[((v 1 "x")), (v 2 "y"), (v 3 "z")]]
     ]
 
 testSlicedExpr = testList "SlicedExpr" [
-      t "E1[:]" "0[:]" [[("E1", zero)]]
-    , t "E1[E2:]" "0[1:]" [[("E1", zero), ("E2", one)]]
-    , t "E1[E2:E3]" "0[1:2]" [[("E1", zero), ("E2", one), ("E3", two)]]
-    , t "E1[E2:E3:]" "0[1:2:]" [[("E1", zero), ("E2", one), ("E3", two)]]
-    , t "E1[E2:E3:E4]" "0[1:2:3]" [[("E1", zero), ("E2", one), ("E3", two), ("E4", three)]]
+      t "E1[:]" "0[:]" [[((e 1 zero))]]
+    , t "E1[E2:]" "0[1:]" [[((e 1 zero)), ((e 2 one))]]
+    , t "E1[E2:E3]" "0[1:2]" [[((e 1 zero)), ((e 2 one)), ((e 3 two))]]
+    , t "E1[E2:E3:]" "0[1:2:]" [[((e 1 zero)), ((e 2 one)), ((e 3 two))]]
+    , t "E1[E2:E3:E4]" "0[1:2:3]" [[((e 1 zero)), ((e 2 one)), ((e 3 two)), (e 4 three)]]
 
-    , t "V1[V2:V3:V4]" "w[x:y:z]" [[("V1", var "w"), ("V2", var "x"), ("V3", var "y"), ("V4", var "z")]]
+    , t "V1[V2:V3:V4]" "w[x:y:z]" [[(v 1 "w"), (v 2 "x"), (v 3 "y"), (v 4 "z")]]
     ]
 
 testStringConversion = testList "StringConversion" [
-      t "`E1`" "`0`" [[("E1", zero)]]
+      t "`E1`" "`0`" [[((e 1 zero))]]
 
-    , t "`V1`" "`x`" [[("V1", var "x")]]
+    , t "`V1`" "`x`" [[((v 1 "x"))]]
     ]
 
 quickCheckMatchExprRule = qc count_matches 10000 "quickCheckMatchExprRule"

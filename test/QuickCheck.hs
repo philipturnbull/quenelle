@@ -50,7 +50,12 @@ instance Arbitrary QOp where
         , FloorDivide ()
         , Invert ()
         , Modulo ()
-        , Dot ()
+        ]
+
+instance Arbitrary QYieldArg where
+    arbitrary = oneof [
+          YieldFrom <$> arbitrary <*> return ()
+        , YieldExpr <$> arbitrary
         ]
 
 instance Arbitrary QCompFor where
@@ -81,7 +86,13 @@ instance Arbitrary QCompIter where
     shrink (IterFor for ()) = [IterFor for' () | for' <- shrink for]
     shrink (IterIf if_ ()) = [IterIf if_' () | if_' <- shrink if_]
 
-instance Arbitrary a => Arbitrary (QComprehension a) where
+instance Arbitrary QDictMappingPair where
+    arbitrary = DictMappingPair <$> arbitrary <*> arbitrary
+
+instance Arbitrary QComprehensionExpr where
+    arbitrary = ComprehensionExpr <$> arbitrary
+
+instance Arbitrary QComprehension where
     arbitrary = Comprehension <$> arbitrary <*> arbitrary <*> return ()
 
     shrink (Comprehension e for ()) = [Comprehension e' for' () | (e', for') <- shrink (e, for)]
@@ -159,6 +170,7 @@ instance Arbitrary QExpr where
         , (1, CondExpr <$> arbitrary <*> arbitrary <*> arbitrary <*> annot)
         , (1, BinaryOp <$> arbitrary <*> arbitrary <*> arbitrary <*> annot)
         , (1, UnaryOp <$> arbitrary <*> arbitrary <*> annot)
+        , (1, Dot <$> arbitrary <*> dotIdents <*> annot)
         , (2, Lambda <$> emptyl <*> arbitrary <*> annot)
         , (1, Lambda <$> arbitrary <*> arbitrary <*> annot)
         , (2, Tuple <$> emptyl <*> annot)
@@ -184,6 +196,7 @@ instance Arbitrary QExpr where
                         [prefix ++ "'a'", prefix ++ "\"bb\""],
                         [prefix ++ "\"a\"", prefix ++ "'bb'", prefix ++ "\"ccc\""]
                         ]
+              dotIdents = idents ["d1", "d2", "d3"]
 
     shrink (Call f args ()) = f : [Call f' args' () | (f', args') <- shrink (f, args)]
     shrink (Subscript s e ()) = [s, e] ++ [Subscript s' e' () | (s', e') <- shrink (s, e)]
@@ -195,15 +208,15 @@ instance Arbitrary QExpr where
     shrink (Tuple [e] ()) = e : [Tuple [e'] () | e' <- shrink e]
     shrink (Tuple xs ()) = [Tuple xs' () | xs' <- shrink xs]
     shrink (Yield Nothing ()) = []
-    shrink (Yield (Just e) ()) = e : [Yield (Just e') () | e' <- shrink e]
+    shrink (Yield (Just e) ()) = [Yield (Just e') () | e' <- shrink e]
     -- Try to strip away the generator and look at the generator expression instead
     shrink (Generator c@(Comprehension e (CompFor fes ie _ ()) ()) ()) =
-        e : ie : fes ++ [Generator c' () | c' <- shrink c]
-    shrink (ListComp c@(Comprehension e (CompFor fes ie _ ()) ()) ()) = e : ie : fes ++ [ListComp c' () | c' <- shrink c]
+        ie : fes ++ [Generator c' () | c' <- shrink c]
+    shrink (ListComp c@(Comprehension e (CompFor fes ie _ ()) ()) ()) = ie : fes ++ [ListComp c' () | c' <- shrink c]
     shrink (List [e] ()) = e : [List [e'] () | e' <- shrink e]
     shrink (List es ()) = [List es' () | es' <- shrink es]
     -- Try to strip away the generator and look the the key/values instead
-    shrink (Dictionary [(k, v)] ()) = [k, v] ++ shrink k ++ shrink v
+    shrink (Dictionary [(DictMappingPair k v)] ()) = [k, v] ++ shrink k ++ shrink v
     shrink (Dictionary kvs ()) = [Dictionary kvs' () | kvs' <- shrink kvs]
     shrink (Set [e] ()) = e : [Set [e'] () | e' <- shrink e]
     shrink (Set es ()) = [Set es' () | es' <- shrink es]

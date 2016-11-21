@@ -9,14 +9,18 @@ type QArgument = Argument ()
 type QCompFor = CompFor ()
 type QCompIf = CompIf ()
 type QCompIter = CompIter ()
-type QComprehension a = Comprehension a ()
+type QComprehension = Comprehension ()
+type QComprehensionExpr = ComprehensionExpr ()
+type QDictMappingPair = DictMappingPair ()
 type QExpr = Expr ()
 type QIdent = Ident ()
 type QOp = Op ()
 type QParameter = Parameter ()
 type QParamTuple = ParamTuple ()
 type QSlice = Slice ()
+type QYieldArg = YieldArg ()
 
+type QIdentPath = Traversal QExpr QExpr QIdent QIdent
 type QExprPath = Traversal QExpr QExpr QExpr QExpr
 
 -- Ident
@@ -102,6 +106,11 @@ makeLensesFor [
 --  ("operator", "operatorL")
     ("op_arg", "op_argL")
     ] ''Expr
+---- Dot
+makeLensesFor [
+    ("dot_expr", "dot_exprL"),
+    ("dot_attribute", "dot_attributeL")
+    ] ''Expr
 ---- Lambda
 makeLensesFor [
     ("lambda_args", "lambda_argsL"),
@@ -113,8 +122,9 @@ makeLensesFor [
     ] ''Expr
 ---- Yield
 makeLensesFor [
-    ("yield_expr", "yield_exprL")
+    ("yield_arg", "yield_argL")
     ] ''Expr
+makePrisms ''YieldArg
 ---- Generator
 makeLensesFor [
     ("gen_comprehension", "gen_comprehensionL")
@@ -131,6 +141,7 @@ makeLensesFor [
 makeLensesFor [
     ("dict_mappings", "dict_mappingsL")
     ] ''Expr
+makePrisms ''DictMappingPair
 ---- DictComp
 makeLensesFor [
     ("dict_comprehension", "dict_comprehensionL")
@@ -230,6 +241,7 @@ makeLensesFor [
     ("comprehension_expr", "comprehension_exprL"),
     ("comprehension_for", "comprehension_forL")
     ] ''Comprehension
+makePrisms ''ComprehensionExpr
 ---- annot
 makeLensesFor [
     ("comprehension_annot", "comprehension_annotL")

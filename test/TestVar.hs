@@ -16,14 +16,16 @@ testVar = TestList [
 
 testClassifyVar :: Test
 testClassifyVar = TestLabel "classifyVar" $ TestList [
-      "E" ~> (Expression, "E")
-    , "E1" ~> (BoundExpression, "E1")
-    , "E32" ~> (BoundExpression, "E32")
-    , "V" ~> (Variable, "V")
-    , "V1" ~> (BoundVariable, "V1")
-    , "V99" ~> (BoundVariable, "V99")
-    , "x" ~> (Normal, "x")
-    , "foo" ~> (Normal, "foo")
+      "E" ~> Expression
+    , "E1" ~> (BoundExpression $ ExpressionID 1)
+    , "E32" ~> (BoundExpression $ ExpressionID 32)
+    , "V" ~> Variable
+    , "V1" ~> (BoundVariable $ VariableID 1)
+    , "V99" ~> (BoundVariable $ VariableID 99)
+    , "x" ~> Normal
+    , "foo" ~> Normal
+    , "Efoo" ~> Normal
+    , "Vfoo" ~> Normal
     ]
     where (~>) ident expected = TestCase $ assertEqual ident (classifyVar (Ident ident ())) expected
 
@@ -37,9 +39,9 @@ testValidateVars = TestLabel "validateVars" $ TestList [
     , [e1_1, e1_2] ~> Nothing
     , [e2_1, e2_2] ~> Nothing
     ]
-    where (~>) :: [(String, Int)] -> Maybe [(String, Int)] -> Test
-          (~>) vars expected = TestCase $ assertEqual (show vars) (sort <$> expected) (sort <$> validateVars vars)
-          e1_1 = ("E1", 1)
-          e1_2 = ("E1", 2)
-          e2_1 = ("E2", 1)
-          e2_2 = ("E2", 2)
+    where (~>) :: [Binding] -> Maybe [Binding] -> Test
+          (~>) vars expected = TestCase $ assertEqual (show vars) (sort <$> expected) (sort <$> validateBindings vars)
+          e1_1 = (ExpressionBinding (ExpressionID 1) (Int 1 "1" ()))
+          e1_2 = (ExpressionBinding (ExpressionID 1) (Int 1 "2" ()))
+          e2_1 = (ExpressionBinding (ExpressionID 2) (Int 1 "1" ()))
+          e2_2 = (ExpressionBinding (ExpressionID 2) (Int 1 "2" ()))

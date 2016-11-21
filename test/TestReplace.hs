@@ -18,6 +18,7 @@ testReplace :: Test
 testReplace = TestLabel "doReplacement" $ TestList [
     testLiterals,
     testBindings,
+    testDot,
     testParen,
     testBinaryOp,
     testUnaryOp,
@@ -60,11 +61,23 @@ testLiterals = testList "literals" [
 testBindings = testList "bindings" [
       t "0" "E1" "E1" "0"
     , t "0" "E1" "E2" "E2" -- If a variable isn't bound, leave it alone
+    , t "x" "V1" "V1 + V1" "x + x"
+    , t "x + y" "V1 + V2" "V2 + V1" "y + x"
+    ]
+
+testDot = testList "Dot" [
+      t "x.y" "V1.V2" "V2.V1" "y.x"
+    , t "x.y.z" "V1.V2.V3" "V3.V2.V1" "z.y.x"
+    , t "x.y" "V1.E1" "V1.E1" "x.y"
+    -- TODO: this seems to fail because exprToPred isn't doing the right
+    -- thing for BoundExpressions on Dot expressions
+    --, t "x.y" "V1.E1" "E1.V1" "y.x"
     ]
 
 testParen = testList "Paren" [
       t "(0)" "0" "1" "(1)"
     , t "((0))" "0" "1" "((1))"
+    , t "((x))" "(V1)" "V1" "(x)"
     ]
 
 testBinaryOp = testList "BinaryOp" [
@@ -73,39 +86,63 @@ testBinaryOp = testList "BinaryOp" [
     , t "(1 + 2)" "(E1 + E2)" "(E2 + E1)" "(2 + 1)"
     , t "(1 + 2)" "E1 + E2" "E2 + E1" "(2 + 1)"
     , t "(1 + (2))" "E1 + (E2)" "E1 + E2" "(1 + 2)"
+    , t "(x + (y))" "(V1 + (V2))" "V1 + V2" "x + y"
     ]
 
 testUnaryOp = testList "UnaryOp" [
       t "+0" "+E1" "E1" "0"
     , t "+0" "+E1" "-E1" "-0"
+    , t "+x" "+V1" "V1" "x"
+    , t "+x" "+V1" "-V1" "-x"
     ]
 
 testCall = testList "Call" [
       t "f()" "E1()" "E1()" "f()"
     , t "f()" "E1()" "E1" "f"
+    , t "f()" "V1()" "V1()" "f()"
+    , t "f()" "V1()" "V1" "f"
+
     , t "f + g()" "E1 + E2()" "E2 + E1()" "g + f()"
     , t "f + g()" "E1 + E2()" "E1() + E2" "f() + g"
+
+    , t "f + g()" "V1 + V2()" "V2 + V1()" "g + f()"
+    , t "f + g()" "V1 + V2()" "V1() + V2" "f() + g"
 
     , t "f(g)" "E1(E2)" "E2(E1)" "g(f)"
     , t "f(x, y)" "f(E1, E2)" "f(E2, E1)" "f(y, x)"
     , t "f(x + y)" "f(E1 + E2)" "f(E1, E2)" "f(x, y)"
     , t "f(x, f(y + 0))" "E1 + 0" "E1" "f(x, f(y))"
 
+    , t "f(g)" "V1(V2)" "V2(V1)" "g(f)"
+    , t "f(x, y)" "f(V1, V2)" "f(V2, V1)" "f(y, x)"
+    , t "f(x + y)" "f(V1 + V2)" "f(V1, V2)" "f(x, y)"
+    , t "f(x, f(y + 0))" "V1 + 0" "V1" "f(x, f(y))"
+
     , t "f(*x)" "E1(*E2)" "E1(E2)" "f(x)"
     , t "f(*(x,))" "E1(*(E2,))" "E1(E2)" "f(x)"
     , t "f(*(x, y))" "E1(*(E2, E3))" "E1(E2, E3)" "f(x, y)"
+
+    , t "f(*x)" "V1(*V2)" "V1(V2)" "f(x)"
+    , t "f(*(x,))" "V1(*(V2,))" "V1(V2)" "f(x)"
+    , t "f(*(x, y))" "V1(*(V2, V3))" "V1(V2, V3)" "f(x, y)"
     ]
 
 testSubscript = testList "Subscript" [
       t "x[0]" "x[E1]" "E1" "0"
     , t "x[y]" "E1[E2]" "E2[E1]" "y[x]"
     , t "x[(y)]" "E1[(E2)]" "E2[E1]" "y[x]"
+
+    , t "x[y]" "V1[V2]" "V2[V1]" "y[x]"
+    , t "x[(y)]" "V1[(V2)]" "V2[V1]" "y[x]"
     ]
 
 testTuple = testList "Tuple" [
       t "()" "E1" "E1" "()"
     , t "(x,)" "(E1,)" "(E1,)" "(x,)"
     , t "(x, y)" "(E1, E2)" "(E2, E1)" "(y, x)"
+
+    , t "(x,)" "(V1,)" "(V1,)" "(x,)"
+    , t "(x, y)" "(V1, V2)" "(V2, V1)" "(y, x)"
     ]
 
 testListComp = testList "ListComp" [
@@ -117,4 +154,8 @@ testListComp = testList "ListComp" [
     , t "[f(x) for x in xs]" "[E1(E2) for E2 in E3]" "map(E1, E3)" "map(f, xs)"
     , t "[x for x in xs if f(x)]" "[E1 for E1 in E2 if E3(E1)]" "filter(E3, E2)" "filter(f, xs)"
     , t "[x for x in xs if x]" "[E1 for E1 in E2 if E1]" "filter(None, E2)" "filter(None, xs)"
+
+    , t "[f(x) for x in xs]" "[V1(V2) for V2 in V3]" "map(V1, V3)" "map(f, xs)"
+    , t "[x for x in xs if f(x)]" "[V1 for V1 in V2 if V3(V1)]" "filter(V3, V2)" "filter(f, xs)"
+    , t "[x for x in xs if x]" "[V1 for V1 in V2 if V1]" "filter(None, V2)" "filter(None, xs)"
     ]

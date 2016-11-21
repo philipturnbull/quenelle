@@ -16,9 +16,8 @@ import Quenelle.Normalize
 import Quenelle.Rule
 
 go :: ExprSpan -> ExprRule -> String
-go e r = name ++ ": " ++ (prettyText $ fromJust $ (normalizeExpr e) ^? path) ++ " "
-    where path = snd $ head $ exprRuleBoundVars r
-          name = fst $ head $ exprRuleBoundVars r
+go e r = (show name) ++ ": " ++ (prettyText $ fromJust $ (normalizeExpr e) ^? path) ++ " "
+    where (RuleVariableBinding name path) = head $ exprRuleBindings r
 
 matchRule b rule str =
     case parseExpr str "" of
