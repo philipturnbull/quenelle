@@ -204,7 +204,7 @@ instance Arbitrary QExpr where
     shrink (CondExpr t c f ()) = [t, c, f] ++ [CondExpr t' c' f' () | (t', c', f') <- shrink (t, c, f)]
     shrink (BinaryOp op l r ()) = [l, r] ++ [BinaryOp op l' r' () | (l', r') <- shrink (l, r)]
     shrink (UnaryOp op e ()) = e : [UnaryOp op e' () | e' <- shrink e]
-    shrink (Lambda args e ()) = [e] ++ [Lambda args' e' () | (args', e') <- shrink (args, e)]
+    shrink (Lambda args e ()) = e : [Lambda args' e' () | (args', e') <- shrink (args, e)]
     shrink (Tuple [e] ()) = e : [Tuple [e'] () | e' <- shrink e]
     shrink (Tuple xs ()) = [Tuple xs' () | xs' <- shrink xs]
     shrink (Yield Nothing ()) = []
@@ -216,7 +216,7 @@ instance Arbitrary QExpr where
     shrink (List [e] ()) = e : [List [e'] () | e' <- shrink e]
     shrink (List es ()) = [List es' () | es' <- shrink es]
     -- Try to strip away the generator and look the the key/values instead
-    shrink (Dictionary [(DictMappingPair k v)] ()) = [k, v] ++ shrink k ++ shrink v
+    shrink (Dictionary [DictMappingPair k v] ()) = [k, v] ++ shrink k ++ shrink v
     shrink (Dictionary kvs ()) = [Dictionary kvs' () | kvs' <- shrink kvs]
     shrink (Set [e] ()) = e : [Set [e'] () | e' <- shrink e]
     shrink (Set es ()) = [Set es' () | es' <- shrink es]

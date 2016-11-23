@@ -46,7 +46,7 @@ testDoReplacement sexpr srule sreplacement sexpected =
                                     case matchExprRule rule (normalizeExpr expr) of
                                         [] -> fail $ "Failed matchExprRule for: " ++ matchMsg
                                         [match] -> TestCase $ assertEqual assertString (normalizeExpr expected) (doReplacement replacement match)
-                                        matches -> fail $ "Found " ++ (show $ length matches) ++ " matches for: " ++ matchMsg
+                                        matches -> fail $ "Found " ++ show (length matches) ++ " matches for: " ++ matchMsg
     where matchMsg = srule ++ " -> " ++ sexpr
           assertString = intercalate " -> " [sexpr, srule, sreplacement, sexpected]
 

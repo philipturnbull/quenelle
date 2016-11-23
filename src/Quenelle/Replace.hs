@@ -56,14 +56,14 @@ doBinding bs (RuleExpressionBinding name path) expr =
 
 lookupVariableBinding :: [Binding] -> VariableID -> Maybe QIdent
 lookupVariableBinding [] name = Nothing
-lookupVariableBinding ((VariableBinding iname i):bs) name
+lookupVariableBinding (VariableBinding iname i:bs) name
     | iname == name = Just i
     | otherwise = lookupVariableBinding bs name
 lookupVariableBinding (_:bs) name = lookupVariableBinding bs name
 
 lookupExpressionBinding :: [Binding] -> ExpressionID -> Maybe QExpr
 lookupExpressionBinding [] name = Nothing
-lookupExpressionBinding ((ExpressionBinding ename e):bs) name
+lookupExpressionBinding (ExpressionBinding ename e:bs) name
     | ename == name = Just e
     | otherwise = lookupExpressionBinding bs name
 lookupExpressionBinding (_:bs) name = lookupExpressionBinding bs name

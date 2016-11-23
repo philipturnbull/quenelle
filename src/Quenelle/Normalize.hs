@@ -1,10 +1,10 @@
-{-# LANGUAGE RecordWildCards #-}
 module Quenelle.Normalize (
     normalizeExpr
 ) where
 
 import Language.Python.Common.AST
 
+import Control.Monad
 import Quenelle.Lens
 
 -- | Convert a @ExprSpan@ (@Expr@ @SrcSpan@) into a @Expr@ @()@. In many places
@@ -12,4 +12,4 @@ import Quenelle.Lens
 --   @ExprSpan@ because the @SrcSpan@s are not equal. The implementation has been
 --   mostly auto-generated.
 normalizeExpr :: Expr a -> QExpr
-normalizeExpr e = fmap (\_ -> ()) e
+normalizeExpr = void

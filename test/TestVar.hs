@@ -41,7 +41,7 @@ testValidateVars = TestLabel "validateVars" $ TestList [
     ]
     where (~>) :: [Binding] -> Maybe [Binding] -> Test
           (~>) vars expected = TestCase $ assertEqual (show vars) (sort <$> expected) (sort <$> validateBindings vars)
-          e1_1 = (ExpressionBinding (ExpressionID 1) (Int 1 "1" ()))
-          e1_2 = (ExpressionBinding (ExpressionID 1) (Int 1 "2" ()))
-          e2_1 = (ExpressionBinding (ExpressionID 2) (Int 1 "1" ()))
-          e2_2 = (ExpressionBinding (ExpressionID 2) (Int 1 "2" ()))
+          e1_1 = ExpressionBinding (ExpressionID 1) (Int 1 "1" ())
+          e1_2 = ExpressionBinding (ExpressionID 1) (Int 1 "2" ())
+          e2_1 = ExpressionBinding (ExpressionID 2) (Int 1 "1" ())
+          e2_2 = ExpressionBinding (ExpressionID 2) (Int 1 "2" ())

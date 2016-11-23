@@ -41,9 +41,9 @@ data VarType =
 classifyVar :: QIdent -> VarType
 classifyVar x = f (ident_string x)
     where f "E" = Expression
-          f ('E':num) | all isDigit num = (BoundExpression $ ExpressionID $ read num)
+          f ('E':num) | all isDigit num = BoundExpression $ ExpressionID $ read num
           f "V" = Variable
-          f ('V':num) | all isDigit num = (BoundVariable $ VariableID $ read num)
+          f ('V':num) | all isDigit num = BoundVariable $ VariableID $ read num
           f _ = Normal
 
 validateBindings :: [Binding] -> Maybe [Binding]
@@ -70,7 +70,7 @@ type BindingMap k v = Map.Map k (NonEmpty v)
 groupBindings :: [Binding] -> (BindingMap ExpressionID QExpr, BindingMap VariableID QIdent)
 groupBindings = f Map.empty Map.empty
     where f eacc vacc [] = (eacc, vacc)
-          f eacc vacc ((VariableBinding k v):bs) = f eacc (Map.alter (upsert v) k vacc) bs
-          f eacc vacc ((ExpressionBinding k v):bs) = f (Map.alter (upsert v) k eacc) vacc bs
+          f eacc vacc (VariableBinding k v:bs) = f eacc (Map.alter (upsert v) k vacc) bs
+          f eacc vacc (ExpressionBinding k v:bs) = f (Map.alter (upsert v) k eacc) vacc bs
           upsert v (Just (NonEmpty h t)) = Just $ NonEmpty h (v : t)
           upsert v Nothing = Just $ NonEmpty v []

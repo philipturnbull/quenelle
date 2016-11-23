@@ -47,11 +47,11 @@ stmtExprs s@(Delete exprs _) = map (normalizeAndSpan s) exprs
 stmtExprs s@(StmtExpr e _) = [normalizeAndSpan s e]
 stmtExprs s@(Assert exprs _) = map (normalizeAndSpan s) exprs
 stmtExprs s@(Print _ exprs _ _) = map (normalizeAndSpan s) exprs
-stmtExprs s@(Exec expr scope _) = map (normalizeAndSpan s) $ [expr] ++ flattenExecScope scope
+stmtExprs s@(Exec expr scope _) = map (normalizeAndSpan s) $ expr : flattenExecScope scope
 stmtExprs _ = []
 
 flattenExecScope :: Maybe (ExprSpan, Maybe ExprSpan) -> [ExprSpan]
-flattenExecScope (Just (l, (Just r))) = [l, r]
+flattenExecScope (Just (l, Just r)) = [l, r]
 flattenExecScope (Just (l, Nothing)) = [l]
 flattenExecScope Nothing = []
 

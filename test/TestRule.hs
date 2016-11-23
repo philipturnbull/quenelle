@@ -16,7 +16,7 @@ import Quenelle.Normalize
 import Quenelle.Rule
 
 go :: ExprSpan -> ExprRule -> String
-go e r = (show name) ++ ": " ++ (prettyText $ fromJust $ (normalizeExpr e) ^? path) ++ " "
+go e r = show name ++ ": " ++ prettyText (fromJust $ normalizeExpr e ^? path) ++ " "
     where (RuleVariableBinding name path) = head $ exprRuleBindings r
 
 matchRule b rule str =
@@ -25,7 +25,7 @@ matchRule b rule str =
         Right (e, _) ->
             case parseExprRule rule of
                 Left _ -> TestCase $ assertFailure $ "Failed to parse rule: " ++ rule
-                Right r -> TestCase $ assertEqual ((go e r) ++ rule ++ " -> " ++ str) b ((exprRulePred r) (normalizeExpr e))
+                Right r -> TestCase $ assertEqual (go e r ++ rule ++ " -> " ++ str) b (exprRulePred r (normalizeExpr e))
 
 testRule :: Test
 testRule = TestLabel "Rule" $ TestList [
